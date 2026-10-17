@@ -165,14 +165,15 @@ describe("runExtraction", () => {
     expect(r.plans[0].field_sources.next_due_date).toBe("unknown");
   });
 
-  it("falls back to the simulated extraction when the API fails", async () => {
-    const onModelError = vi.fn();
-    const r = await runExtraction({
-      bytes, mimeType: "image/png", today, simulate: false,
-      callModel: () => Promise.reject(new Error("429 quota")), onModelError,
-    });
-    expect(onModelError).toHaveBeenCalledOnce();
-    expect(r.kind === "plans" && r.simulated).toBe(true);
+  it("reports the model as unavailable when the API fails, never SIMULADO", async () => {
+    for (const err of [new Error("429 RESOURCE_EXHAUSTED"), new Error("This operation was aborted"), new Error("500")]) {
+      const onModelError = vi.fn();
+      const r = await runExtraction({
+        bytes, mimeType: "image/png", today, simulate: false, callModel: () => Promise.reject(err), onModelError,
+      });
+      expect(onModelError).toHaveBeenCalledOnce();
+      expect(r).toEqual({ kind: "unavailable" });
+    }
   });
 
   it("passes real model output through validation, not simulated", async () => {

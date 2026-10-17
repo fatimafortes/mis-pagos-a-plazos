@@ -34,7 +34,8 @@ export interface ExtractedPlan extends PlanInput {
 export type ExtractResult =
   | { kind: "plans"; simulated: boolean; plans: ExtractedPlan[] }
   | { kind: "rejected"; simulated: boolean; message: string }
-  | { kind: "invalid_output" };
+  | { kind: "invalid_output" }
+  | { kind: "unavailable" }; // the model failed (quota, timeout, error); never replaced by invented data
 
 export const MAX_PLANS = 10;
 const FREQUENCIES: Frequency[] = ["semanal", "quincenal", "mensual"];
@@ -221,13 +222,14 @@ export async function runExtraction(opts: {
   callModel: CallModel;
   onModelError?: (err: unknown) => void;
 }): Promise<ExtractResult> {
+  // SIMULADO only when SIMULATE_AI=true; a failing model is reported, never covered with example data.
   if (opts.simulate) return parseModelOutput(simulatedModelText(opts.today), opts.today, true);
   let text: string;
   try {
     text = await opts.callModel(opts.bytes, opts.mimeType);
   } catch (err) {
     opts.onModelError?.(err);
-    return parseModelOutput(simulatedModelText(opts.today), opts.today, true);
+    return { kind: "unavailable" };
   }
   return parseModelOutput(text, opts.today);
 }

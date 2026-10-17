@@ -5,7 +5,7 @@ import { runExtraction, todayInMexico } from "@/lib/extraction";
 import { callGemini } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30; // Gemini can take a few seconds per image.
+export const maxDuration = 60; // Gemini may take up to its 45 s timeout per image.
 
 // Multipart overhead on top of the 5 MB image.
 const MAX_BODY = MAX_BYTES + 64 * 1024;
@@ -43,8 +43,15 @@ export async function POST(request: Request) {
     simulate: process.env.SIMULATE_AI === "true",
     callModel: callGemini,
     onModelError: (err) =>
-      console.error("[api/extract] Gemini falló, uso respuesta simulada:", err instanceof Error ? err.message : err),
+      console.error("[api/extract] Gemini falló:", err instanceof Error ? err.message : err),
   });
+
+  if (result.kind === "unavailable") {
+    return NextResponse.json(
+      { error: "No pude leer la captura ahora. Intenta más tarde o captúralo a mano." },
+      { status: 503 },
+    );
+  }
 
   if (result.kind === "invalid_output") {
     return NextResponse.json(
