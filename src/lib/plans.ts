@@ -207,15 +207,18 @@ export function toDraft(value: PlanInput[PlanField]): string {
   return value === null ? "" : String(value);
 }
 
+/** "17 nov 2026" for a typed YYYY-MM-DD, so day and month can't be confused; null while incomplete or invalid. */
+export function dateInWords(draft: string): string | null {
+  const d = parseDate(draft.trim());
+  return d ? `${d.d} ${MONTHS[d.m - 1]} ${d.y}` : null;
+}
+
 export function formatField(field: PlanField, value: PlanInput[PlanField]): string {
   if (value === null) return "No aparece en la captura";
   if (field === "installment_amount") {
     return "$" + Number(value).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-  if (field === "next_due_date") {
-    const d = parseDate(String(value));
-    return d ? `${d.d} ${MONTHS[d.m - 1]} ${d.y}` : String(value);
-  }
+  if (field === "next_due_date") return dateInWords(String(value)) ?? String(value);
   if (field === "payments_remaining") return value === 1 ? "1 pago" : `${value} pagos`;
   return String(value);
 }

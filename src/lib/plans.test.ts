@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sanitizePlan } from "./extraction";
 import {
-  applyEdit, confirmedPlanSchema, duplicateQuestion, emptyManualPlan, fieldSchemas, findDuplicate, formatField,
+  applyEdit, confirmedPlanSchema, dateInWords, duplicateQuestion, emptyManualPlan, fieldSchemas, findDuplicate, formatField,
   isManualPlan, parseDraft, rowToSavedPlan, toConfirmedPlan,
 } from "./plans";
 
@@ -193,5 +193,18 @@ describe("findDuplicate", () => {
   it("asks with the app name", () => {
     expect(duplicateQuestion("PagaLuego")).toBe("Ya tienes un plan igual de PagaLuego. ¿Es otra compra o el mismo?");
     expect(duplicateQuestion(null)).toBe("Ya tienes un plan igual de esta app. ¿Es otra compra o el mismo?");
+  });
+});
+
+describe("dateInWords (under the date field)", () => {
+  it("spells the month so day and month can't be swapped", () => {
+    expect(dateInWords("2026-11-17")).toBe("17 nov 2026");
+    expect(dateInWords("2027-01-05")).toBe("5 ene 2027");
+  });
+
+  it("shows nothing for an incomplete or impossible date", () => {
+    expect(dateInWords("")).toBeNull();
+    expect(dateInWords("2026-11")).toBeNull();
+    expect(dateInWords("2026-02-30")).toBeNull();
   });
 });

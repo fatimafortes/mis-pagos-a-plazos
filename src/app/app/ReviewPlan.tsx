@@ -5,7 +5,7 @@ import {
   FIELD_LABEL, PLAN_FIELDS, SOURCE_LABEL, YEAR_CALCULATED_LABEL, todayInMexico, type ExtractedPlan, type PlanField,
 } from "@/lib/extraction";
 import {
-  FREQUENCY_OPTIONS, applyEdit, fieldSchemas, formatField, parseDraft, toConfirmedPlan, toDraft,
+  FREQUENCY_OPTIONS, applyEdit, dateInWords, fieldSchemas, formatField, parseDraft, toConfirmedPlan, toDraft,
 } from "@/lib/plans";
 
 type Mode = "review" | "edit" | "saving" | "saved" | "duplicate" | "skipped";
@@ -105,7 +105,17 @@ export default function ReviewPlan({
         </select>
       );
     }
-    if (field === "next_due_date") return <input {...common} type="date" />;
+    if (field === "next_due_date") {
+      const words = dateInWords(drafts[field]);
+      return (
+        <>
+          <input {...common} type="date" aria-describedby={`${uid}-date-words`} />
+          <div id={`${uid}-date-words`} className="small muted" aria-live="polite" style={{ marginTop: 4 }}>
+            {words ?? "Elige día, mes y año."}
+          </div>
+        </>
+      );
+    }
     if (field === "installment_amount") return <input {...common} inputMode="decimal" placeholder="$0.00" />;
     if (field === "payments_remaining") return <input {...common} inputMode="numeric" placeholder="0" />;
     return <input {...common} maxLength={60} placeholder="Nombre de la app" />;
