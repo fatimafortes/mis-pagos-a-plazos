@@ -1,13 +1,16 @@
 // npm run eval — sends every invented screenshot in tests/fixtures to the real Gemini model
 // and prints field accuracy and the count of invented values (PACKET §3).
 // Always calls the real API (ignores SIMULATE_AI). Needs GEMINI_API_KEY in .env.local or the environment.
-// Free tier: 5 requests/minute and 20/day for this model, so one run (8 calls) is paced and stops on quota.
+// Free tier: 5 requests/minute and 20/day for this model, so one run (8 calls) is paced.
+// Quota (429) and service outages (503) stop the run with no result; timeouts count as failures.
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { callGemini, GEMINI_MODEL } from "../src/lib/gemini";
 import { parseModelOutput, type ExtractResult } from "../src/lib/extraction";
 import { parseDate } from "../src/lib/quincenas";
-import { scoreFixture, summarize, TARGET_ACCURACY, type ExpectedFixture } from "../src/lib/evalScore";
+import {
+  SERVICE_ERROR_LABEL, TARGET_ACCURACY, classifyServiceError, scoreFixture, summarize, type ExpectedFixture,
+} from "../src/lib/evalScore";
 
 const root = resolve(import.meta.dirname, "..");
 const fixtures = resolve(root, "tests/fixtures");
@@ -27,7 +30,6 @@ if (!today) throw new Error(`reference_date no válida: ${file.reference_date}`)
 
 const PACE_MS = 13_000; // stays under 5 requests per minute
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const isQuotaError = (msg: string) => /\b429\b|RESOURCE_EXHAUSTED/.test(msg);
 
 console.log(`Modelo: ${GEMINI_MODEL} · fecha de referencia: ${file.reference_date}\n`);
 
@@ -42,10 +44,10 @@ for (const [i, [name, expected]] of entries.entries()) {
     result = parseModelOutput(await callGemini(bytes, "image/png"), today);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (isQuotaError(msg)) {
-      // A quota error says nothing about extraction quality: stop instead of scoring it as wrong.
-      const daily = /PerDay/.test(msg);
-      console.error(`\nCuota de Gemini agotada en ${name} (${daily ? "límite diario" : "límite por minuto"}).`);
+    const serviceError = classifyServiceError(msg);
+    if (serviceError) {
+      // Quota or outage says nothing about extraction quality: stop instead of scoring it as wrong.
+      console.error(`\n${SERVICE_ERROR_LABEL[serviceError]} en ${name}.`);
       console.error(`Evaluación detenida: ${scores.length}/${entries.length} capturas evaluadas. Sin resultado.`);
       process.exit(2);
     }

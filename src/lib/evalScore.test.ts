@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { parseModelOutput } from "./extraction";
-import { scoreFixture, summarize, type ExpectedFixture } from "./evalScore";
+import { classifyServiceError, scoreFixture, summarize, type ExpectedFixture } from "./evalScore";
 
 const today = { y: 2026, m: 10, d: 16 };
 const expected: ExpectedFixture = {
@@ -101,5 +101,26 @@ describe("tests/fixtures/expected.json", () => {
       const s = scoreFixture(name, exp, result);
       expect(s, name).toMatchObject({ screenOk: true, invented: [], wrong: [] });
     }
+  });
+});
+
+describe("classifyServiceError", () => {
+  it("quota errors stop the eval", () => {
+    expect(classifyServiceError('{"error":{"code":429,"status":"RESOURCE_EXHAUSTED","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier"}}'))
+      .toBe("quota_daily");
+    expect(classifyServiceError('{"error":{"code":429,"quotaId":"GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}}'))
+      .toBe("quota_minute");
+  });
+
+  it("a 503 from Google stops the eval", () => {
+    expect(classifyServiceError(
+      '{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}',
+    )).toBe("unavailable");
+  });
+
+  it("timeouts and other errors are scored as failures, not skipped", () => {
+    expect(classifyServiceError("This operation was aborted")).toBeNull();
+    expect(classifyServiceError('{"error":{"code":500,"status":"INTERNAL"}}')).toBeNull();
+    expect(classifyServiceError("Gemini devolvió una respuesta vacía.")).toBeNull();
   });
 });

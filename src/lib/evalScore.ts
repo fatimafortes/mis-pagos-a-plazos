@@ -90,3 +90,21 @@ export function summarize(scores: FixtureScore[]): EvalSummary {
     passed: accuracy >= TARGET_ACCURACY && invented === 0 && screensOk === scores.length,
   };
 }
+
+/**
+ * Errors that say nothing about extraction quality: the eval stops instead of scoring them.
+ * Timeouts are not here on purpose: a screenshot that takes too long is a real failure for the user.
+ */
+export type ServiceError = "quota_daily" | "quota_minute" | "unavailable";
+
+export function classifyServiceError(message: string): ServiceError | null {
+  if (/\b429\b|RESOURCE_EXHAUSTED/.test(message)) return /PerDay/.test(message) ? "quota_daily" : "quota_minute";
+  if (/\b503\b|UNAVAILABLE/.test(message)) return "unavailable";
+  return null;
+}
+
+export const SERVICE_ERROR_LABEL: Record<ServiceError, string> = {
+  quota_daily: "cuota de Gemini agotada (límite diario)",
+  quota_minute: "cuota de Gemini agotada (límite por minuto)",
+  unavailable: "Gemini no disponible (503, alta demanda)",
+};
