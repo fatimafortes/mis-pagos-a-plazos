@@ -25,12 +25,14 @@
 | 21 | 2026-10-16 | Gemini timeout raised from 25 s to 45 s (route `maxDuration` 60 s) | The blurry eval screenshot took longer than 25 s |
 | 22 | 2026-10-16 | Next.js 15.5.4 → 15.5.28 and React 19.1.0 → 19.1.10 | Vercel blocks deploys of 15.5.4 (CVE-2025-66478) |
 | 23 | 2026-10-16 | Eval set: 8 invented screenshots covering PACKET §11; `npm run eval` paces requests (13 s) and stops on quota errors instead of scoring them | One run = 8 of the 20 daily free requests; a quota error says nothing about extraction quality |
+| 24 | 2026-10-17 | `npm run eval` also stops with "Sin resultado" on a Gemini 503; timeouts still count as failures | A 503 is a Google outage, not a misreading; a slow screenshot is a real failure for the user |
 
 ## Eval results
 
 | Date | Model | Fields correct | Invented values | Screens right | Notes |
 |---|---|---|---|---|---|
 | 2026-10-16 | gemini-3.8-flash | 35/40 (87.5%) — target ≥ 95% | **0** — target 0 | 7/8 | 7 of 8 screenshots perfect, including "5 ene" without a year and $12,345.67. `borrosa.png` failed only because Gemini didn't answer within the 25 s timeout, so its 5 fields counted as wrong (no value was invented). A second run the same day hit the free-tier quota (429: 20 requests/day, 5/minute) and gave no result. |
+| 2026-10-17 | gemini-3.8-flash | — (10/40 scored) | **0** | 1/8 | **Corrida invalidada por 503/timeouts de Google; 0 valores inventados; dosplanes.png 10/10.** 3 screenshots got `503 UNAVAILABLE` ("high demand") and 4 hit the 45 s timeout, including clean ones that took ~5 s the day before. Not a measure of extraction quality. |
 
 ## Checked, not a bug
 - 2026-10-16 — A plan showed $413.00 instead of $412.50. Code keeps exact centavos end to end and `installment_amount` is `numeric(10,2)` (`numeric_scale = 2`); the 413 was a value typed while testing Corregir. Test added that pins $412.50 = 41250 centavos.
@@ -40,4 +42,4 @@
 - Pick the free model with the most requests/day that accepts images. Google's docs don't publish free-tier numbers per model (only "view your active rate limits in AI Studio"); limits are per project, reset at midnight Pacific time and are not guaranteed. Image + structured-output candidates: `gemini-3.8-flash` (20/day, 5/min, from the API's own 429), `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite` — compare them in AI Studio before switching.
 
 ## Next first move
-Run `npm run eval` once the Gemini free quota resets (midnight Pacific time, about 1:00 a.m. in Mexico City), with `borrosa.png` now under the 45 s timeout. If it passes (≥ 95% fields, 0 invented, 8/8 screens), record it under Eval results; if not, look at the failing fixture before touching the prompt.
+Re-run `npm run eval` only when Fátima says so (the 2026-10-17 run was invalidated by Google 503s/timeouts). If it passes (≥ 95% fields, 0 invented, 8/8 screens), record it under Eval results; if not, look at the failing fixture before touching the prompt.
