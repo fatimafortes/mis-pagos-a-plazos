@@ -86,6 +86,7 @@ export function missingFields(plan: PlanInput): string[] {
 
 /** One line per saved plan; `key` is the plan id (or its position when there is none). */
 export interface RowItem { key: string; provider: string; centavos: number; simulated?: boolean }
+/** totalCentavos counts real plans only; simulated items are listed but never added. */
 export interface Row { index: number; label: string; totalCentavos: number; items: RowItem[] }
 export interface Undated {
   id?: string;
@@ -98,8 +99,8 @@ export interface Undated {
 export interface Schedule {
   rows: Row[];
   undated: Undated[];
-  beforeCentavos: number; // payments dated before the current quincena
-  afterCentavos: number;  // payments beyond the horizon
+  beforeCentavos: number; // real payments dated before the current quincena
+  afterCentavos: number;  // real payments beyond the horizon
 }
 
 export function buildSchedule(plans: PlanInput[], today: YMD, horizon = 6): Schedule {
@@ -126,14 +127,16 @@ export function buildSchedule(plans: PlanInput[], today: YMD, horizon = 6): Sche
       continue;
     }
     const amount = toCentavos(plan.installment_amount!);
+    // Simulated (invented) amounts are shown but never summed into any total.
+    const simulated = plan.simulated === true;
+    const counted = simulated ? 0 : amount;
     for (const q of paymentQuincenas(parseDate(plan.next_due_date!)!, plan.frequency!, plan.payments_remaining!)) {
-      if (q < start) beforeCentavos += amount;
-      else if (q >= start + horizon) afterCentavos += amount;
+      if (q < start) beforeCentavos += counted;
+      else if (q >= start + horizon) afterCentavos += counted;
       else {
         const row = rows[q - start];
-        row.totalCentavos += amount;
+        row.totalCentavos += counted;
         // Each plan keeps its own line, even if another plan has the same app name.
-        const simulated = plan.simulated === true;
         const existing = row.items.find((it) => it.key === key);
         if (existing) existing.centavos += amount; // e.g. two weekly payments in one quincena
         else row.items.push(simulated ? { key, provider, centavos: amount, simulated } : { key, provider, centavos: amount });

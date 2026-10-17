@@ -2,6 +2,7 @@ import { formatPesos, type Schedule } from "@/lib/quincenas";
 import { COMPLETENESS_BANNER, type Completeness } from "@/lib/plans";
 
 const SIM = <span className="sim-tag">SIMULADO</span>;
+const NOT_SUMMED = <span className="small muted"> · no se suma</span>;
 
 // All numbers here come from buildSchedule (lib/quincenas.ts); the LLM never computes totals (C2).
 export default function QuincenaResults({
@@ -40,7 +41,8 @@ export default function QuincenaResults({
                     {row.label}
                     {row.items.map((it) => (
                       <div key={it.key} className="small muted">
-                        {it.provider} · {formatPesos(it.centavos)}{it.simulated && SIM}
+                        {it.provider} · {formatPesos(it.centavos)}
+                        {it.simulated && <>{SIM}{NOT_SUMMED}</>}
                       </div>
                     ))}
                   </td>
@@ -76,7 +78,7 @@ export default function QuincenaResults({
           )}
           {hasSimulated && (
             <p className="small muted" style={{ marginTop: 6 }}>
-              Las líneas con {SIM} son datos de ejemplo, no leídos de tu captura.
+              Las líneas con {SIM} son datos de ejemplo, no leídos de tu captura, y no se suman en los totales.
             </p>
           )}
         </div>
