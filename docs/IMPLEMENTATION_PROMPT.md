@@ -2,6 +2,10 @@
 
 You are my coding agent. Build the slice described in `docs/PACKET.md`. Work feature by feature, in the order below. After each feature: run its tests, commit with the given message, and stop for me to check. Never commit secrets.
 
+## Starting point
+
+This repo already contains F0–F3 (scaffold, Google auth, SQL migration, quincena engine with 11 passing tests). First run `npm install`, `npm test` and `npm run build` and confirm they pass. Then continue from **F4**. Read `src/lib/quincenas.ts`, `src/lib/supabase/*` and `supabase/migrations/w10_tables.sql` before writing new code, and reuse them.
+
 ## Product in one paragraph
 
 A signed-in user uploads a screenshot of an installment-app payments screen. A vision LLM extracts the plan into a fixed JSON schema; anything not visible is `null`. The user reviews each field (with a source label), corrects or confirms, and the confirmed plan is saved. Deterministic code buckets payments into quincenas and shows totals, a "Sin fecha" row for plans without a date, and a completeness banner. The screenshot is never stored.
@@ -9,7 +13,7 @@ A signed-in user uploads a screenshot of an installment-app payments screen. A v
 ## Stack (free tiers only)
 
 - Next.js (App Router) + TypeScript, deployed on Vercel.
-- Supabase: Auth (Google sign-in) + Postgres with Row Level Security. Use `@supabase/ssr`.
+- Supabase: my existing project **semestre** (course requirement). Auth (Google sign-in) + Postgres with Row Level Security. Use `@supabase/ssr`. Tables are prefixed `w10_` so they don't collide with other weeks.
 - Gemini API with image input and structured JSON output, called **only from a server route**. Use the current free-tier Flash model (check the name in Google's docs).
 - Zod for validation. Vitest for unit tests.
 - Env vars (Vercel + `.env.local`, never committed): `GEMINI_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SIMULATE_AI` (true/false).
@@ -23,10 +27,10 @@ A signed-in user uploads a screenshot of an installment-app payments screen. A v
 5. All UI text in Spanish (Mexico). A "Datos inventados · demo" tag on every screen.
 6. Validate every input on the server, even if the client already did.
 
-## Data model (SQL migration)
+## Data model (already in `supabase/migrations/w10_tables.sql`)
 
 ```sql
-create table payment_plans (
+create table w10_payment_plans (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   provider_name text check (char_length(provider_name) <= 60),
@@ -37,17 +41,17 @@ create table payment_plans (
   field_sources jsonb not null,
   confirmed_at timestamptz not null default now()
 );
-create table ledger_status (
+create table w10_ledger_status (
   user_id uuid primary key references auth.users(id) on delete cascade,
   completeness text not null default 'incomplete'
     check (completeness in ('incomplete','complete_as_shown','incomplete_by_choice')),
   updated_at timestamptz not null default now()
 );
-alter table payment_plans enable row level security;
-alter table ledger_status enable row level security;
-create policy "own plans" on payment_plans for all
+alter table w10_payment_plans enable row level security;
+alter table w10_ledger_status enable row level security;
+create policy "own plans" on w10_payment_plans for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy "own status" on ledger_status for all
+create policy "own status" on w10_ledger_status for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 ```
 
