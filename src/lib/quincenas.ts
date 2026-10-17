@@ -59,9 +59,16 @@ export function quincenaSentence(index: number): string {
   return `Del ${from} al ${to} de ${MONTHS[m - 1]}`;
 }
 
-export interface DueAlert { provider: string; date: string; kind: "today" | "overdue" }
+/** "past" only means the captured date passed: the app can't know whether it was paid. */
+export interface DueAlert { provider: string; date: string; kind: "today" | "past" }
 
-/** Real plans whose next payment is due today or already passed (simulated plans never alert). */
+export function dueAlertText(a: DueAlert): string {
+  return a.kind === "today"
+    ? `${a.provider} vence hoy`
+    : `La fecha que capturaste de ${a.provider} (${a.date}) ya pasó. Sube una captura nueva para actualizarla.`;
+}
+
+/** Real plans whose captured next date is today or already passed (simulated plans never alert). */
 export function dueAlerts(plans: PlanInput[], today: YMD): DueAlert[] {
   const todayKey = quincenaDayKey(today);
   const alerts: DueAlert[] = [];
@@ -74,7 +81,7 @@ export function dueAlerts(plans: PlanInput[], today: YMD): DueAlert[] {
     alerts.push({
       provider: plan.provider_name?.trim() || "App sin nombre",
       date: `${due.d} ${MONTHS[due.m - 1]}`,
-      kind: key === todayKey ? "today" : "overdue",
+      kind: key === todayKey ? "today" : "past",
     });
   }
   return alerts.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "today" ? -1 : 1));

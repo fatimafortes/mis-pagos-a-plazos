@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildSchedule, dueAlerts, formatPesos, parseDate, paymentQuincenas, quincenaIndex, quincenaLabel, quincenaSentence, toCentavos,
+  buildSchedule, dueAlertText, dueAlerts, formatPesos, parseDate, paymentQuincenas, quincenaIndex, quincenaLabel, quincenaSentence, toCentavos,
   type PlanInput,
 } from "./quincenas";
 
@@ -155,7 +155,7 @@ describe("Tu próxima quincena", () => {
     expect(s.rows[1].totalCentavos).toBe(41250);
   });
 
-  it("flags a payment due today and one already overdue", () => {
+  it("flags a payment due today and a captured date that already passed", () => {
     const alerts = dueAlerts([
       { ...plan, provider_name: "CompraYa", next_due_date: "2026-10-10" },
       { ...plan, next_due_date: "2026-10-16" },
@@ -163,8 +163,15 @@ describe("Tu próxima quincena", () => {
     ], today);
     expect(alerts).toEqual([
       { provider: "PagaLuego", date: "16 oct", kind: "today" },
-      { provider: "CompraYa", date: "10 oct", kind: "overdue" },
+      { provider: "CompraYa", date: "10 oct", kind: "past" },
     ]);
+  });
+
+  it("a passed date never claims the payment is overdue: the app can't know if it was paid", () => {
+    expect(dueAlertText({ provider: "CompraYa", date: "10 oct", kind: "past" })).toBe(
+      "La fecha que capturaste de CompraYa (10 oct) ya pasó. Sube una captura nueva para actualizarla.",
+    );
+    expect(dueAlertText({ provider: "PagaLuego", date: "16 oct", kind: "today" })).toBe("PagaLuego vence hoy");
   });
 
   it("never alerts for simulated plans, plans without a date or with no payments left", () => {

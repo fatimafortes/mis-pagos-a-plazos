@@ -1,4 +1,4 @@
-import { formatPesos, quincenaSentence, type DueAlert, type Schedule } from "@/lib/quincenas";
+import { dueAlertText, formatPesos, quincenaSentence, type DueAlert, type Schedule } from "@/lib/quincenas";
 import { COMPLETENESS_SHORT, type Completeness } from "@/lib/plans";
 
 // The answer to "¿cuánto pago la próxima quincena?" at the top of the screen.
@@ -36,7 +36,7 @@ export default function NextQuincenaCard({
         <ul className="due-alerts">
           {alerts.map((a, i) => (
             <li key={i} className={`due-alert ${a.kind}`}>
-              {a.kind === "today" ? `${a.provider} vence hoy` : `${a.provider} venció el ${a.date}`}
+              {dueAlertText(a)}
             </li>
           ))}
         </ul>
