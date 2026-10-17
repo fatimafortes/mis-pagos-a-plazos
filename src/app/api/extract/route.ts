@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/supabase/server";
 import { MAX_BYTES, checkFileBytes } from "@/lib/upload";
+import { runExtraction, todayInMexico } from "@/lib/extraction";
+import { callGemini } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30; // Gemini can take a few seconds per image.
 
 // Multipart overhead on top of the 5 MB image.
 const MAX_BODY = MAX_BYTES + 64 * 1024;
@@ -33,6 +36,24 @@ export async function POST(request: Request) {
   const check = checkFileBytes({ type: file.type, size: file.size }, bytes);
   if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
 
-  // F5 adds the vision extraction here.
-  return NextResponse.json({ ok: true, type: check.type, size: bytes.length });
+  const result = await runExtraction({
+    bytes,
+    mimeType: check.type,
+    today: todayInMexico(),
+    simulate: process.env.SIMULATE_AI === "true",
+    callModel: callGemini,
+    onModelError: (err) =>
+      console.error("[api/extract] Gemini falló, uso respuesta simulada:", err instanceof Error ? err.message : err),
+  });
+
+  if (result.kind === "invalid_output") {
+    return NextResponse.json(
+      { error: "No pude leer la captura con seguridad. Intenta con otra o vuelve a tomarla." },
+      { status: 502 },
+    );
+  }
+  if (result.kind === "rejected") {
+    return NextResponse.json({ error: result.message, simulated: result.simulated }, { status: 422 });
+  }
+  return NextResponse.json({ simulated: result.simulated, plans: result.plans });
 }

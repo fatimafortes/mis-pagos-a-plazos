@@ -1,12 +1,22 @@
 "use client";
 import { useRef, useState } from "react";
 import { ACCEPT_ATTR, checkFileMeta } from "@/lib/upload";
+import { FIELD_LABEL, PLAN_FIELDS, SOURCE_LABEL, type ExtractedPlan, type PlanField } from "@/lib/extraction";
 
 type Status =
   | { kind: "idle" }
-  | { kind: "error"; message: string }
+  | { kind: "error"; message: string; simulated?: boolean }
   | { kind: "sending" }
-  | { kind: "accepted" };
+  | { kind: "extracted"; simulated: boolean; plans: ExtractedPlan[] };
+
+function formatValue(plan: ExtractedPlan, field: PlanField): string {
+  const value = plan[field];
+  if (value === null) return "No aparece en la captura";
+  if (field === "installment_amount") {
+    return "$" + Number(value).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return String(value);
+}
 
 export default function UploadForm() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,37 +50,73 @@ export default function UploadForm() {
       const res = await fetch("/api/extract", { method: "POST", body });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setStatus({ kind: "error", message: data.error ?? "No pude subir la captura. Intenta de nuevo." });
+        setStatus({
+          kind: "error",
+          message: data.error ?? "No pude subir la captura. Intenta de nuevo.",
+          simulated: data.simulated,
+        });
         return;
       }
-      setStatus({ kind: "accepted" });
+      setStatus({ kind: "extracted", simulated: Boolean(data.simulated), plans: data.plans ?? [] });
     } catch {
       setStatus({ kind: "error", message: "No hay conexión. Intenta de nuevo." });
     }
   }
 
   return (
-    <form className="card" onSubmit={onSubmit}>
-      <h2>Sube una captura</h2>
-      <p className="small muted" style={{ marginTop: 4 }}>
-        La pantalla de pagos de una app a plazos. PNG o JPG, máximo 5 MB. No guardo la imagen.
-      </p>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={ACCEPT_ATTR}
-        onChange={onPick}
-        aria-label="Captura de pantalla"
-        style={{ marginTop: 12, width: "100%" }}
-      />
-      {file && <p className="small muted" style={{ marginTop: 6 }}>{file.name} · {(file.size / 1024).toFixed(0)} KB</p>}
-      <div className="btns">
-        <button className="btn primary" type="submit" disabled={!file || status.kind === "sending"}>
-          {status.kind === "sending" ? "Subiendo…" : "Leer captura"}
-        </button>
-      </div>
-      {status.kind === "error" && <p className="banner error" role="alert">{status.message}</p>}
-      {status.kind === "accepted" && <p className="banner ok">Captura válida. La imagen no se guardó.</p>}
-    </form>
+    <>
+      <form className="card" onSubmit={onSubmit}>
+        <h2>Sube una captura</h2>
+        <p className="small muted" style={{ marginTop: 4 }}>
+          La pantalla de pagos de una app a plazos. PNG o JPG, máximo 5 MB. No guardo la imagen.
+        </p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={ACCEPT_ATTR}
+          onChange={onPick}
+          aria-label="Captura de pantalla"
+          style={{ marginTop: 12, width: "100%" }}
+        />
+        {file && <p className="small muted" style={{ marginTop: 6 }}>{file.name} · {(file.size / 1024).toFixed(0)} KB</p>}
+        <div className="btns">
+          <button className="btn primary" type="submit" disabled={!file || status.kind === "sending"}>
+            {status.kind === "sending" ? "Leyendo captura…" : "Leer captura"}
+          </button>
+        </div>
+        {status.kind === "error" && (
+          <p className="banner error" role="alert">
+            {status.message}
+            {status.simulated && <span className="sim-tag">SIMULADO</span>}
+          </p>
+        )}
+      </form>
+
+      {status.kind === "extracted" && (
+        <section aria-live="polite">
+          <h2 style={{ marginTop: 20 }}>
+            Esto leí de tu captura
+            {status.simulated && <span className="sim-tag">SIMULADO</span>}
+          </h2>
+          {status.simulated && (
+            <p className="small muted" style={{ marginTop: 4 }}>
+              Respuesta de ejemplo: no se leyó tu imagen.
+            </p>
+          )}
+          {status.plans.map((plan, i) => (
+            <div className="card" key={i}>
+              {PLAN_FIELDS.map((field) => (
+                <div key={field} style={{ marginBottom: 10 }}>
+                  <div className="small muted">{FIELD_LABEL[field]}</div>
+                  <div className={plan[field] === null ? "muted" : undefined}>{formatValue(plan, field)}</div>
+                  <span className={`tag t-${plan.field_sources[field]}`}>{SOURCE_LABEL[plan.field_sources[field]]}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+          <p className="small muted" style={{ marginTop: 10 }}>La imagen no se guardó.</p>
+        </section>
+      )}
+    </>
   );
 }
