@@ -1,0 +1,39 @@
+{
+  "reference_date": "2026-10-16",
+  "note": "Invented screenshots of fictional apps. Values are what is visible on screen; null = not visible. Sources in src/*.html.",
+  "fixtures": {
+    "pago.png": {
+      "case": "Clean payments screen, one plan",
+      "is_payment_screen": true,
+      "plans": [
+        {
+          "provider_name": "PagaLuego",
+          "installment_amount": 1412.5,
+          "payments_remaining": 3,
+          "next_due_date": "2026-10-30",
+          "frequency": "quincenal",
+          "year_calculated": false
+        }
+      ]
+    },
+    "recortada.png": {
+      "case": "Cropped: no due date or frequency visible",
+      "is_payment_screen": true,
+      "plans": [
+        {
+          "provider_name": "CompraYa",
+          "installment_amount": 389,
+          "payments_remaining": 5,
+          "next_due_date": null,
+          "frequency": null,
+          "year_calculated": false
+        }
+      ]
+    },
+    "chat.png": {
+      "case": "Not a payments screen (chat)",
+      "is_payment_screen": false,
+      "plans": []
+    }
+  }
+}
