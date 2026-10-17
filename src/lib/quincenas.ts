@@ -84,7 +84,8 @@ export function missingFields(plan: PlanInput): string[] {
   return missing;
 }
 
-export interface RowItem { provider: string; centavos: number; simulated?: boolean }
+/** One line per saved plan; `key` is the plan id (or its position when there is none). */
+export interface RowItem { key: string; provider: string; centavos: number; simulated?: boolean }
 export interface Row { index: number; label: string; totalCentavos: number; items: RowItem[] }
 export interface Undated {
   id?: string;
@@ -110,7 +111,8 @@ export function buildSchedule(plans: PlanInput[], today: YMD, horizon = 6): Sche
   let beforeCentavos = 0;
   let afterCentavos = 0;
 
-  for (const plan of plans) {
+  for (const [i, plan] of plans.entries()) {
+    const key = plan.id ?? `#${i}`;
     const provider = plan.provider_name?.trim() || "App sin nombre";
     const missing = missingFields(plan);
     if (missing.length > 0) {
@@ -130,11 +132,11 @@ export function buildSchedule(plans: PlanInput[], today: YMD, horizon = 6): Sche
       else {
         const row = rows[q - start];
         row.totalCentavos += amount;
-        // Simulated amounts get their own line so they're never mixed with real ones.
+        // Each plan keeps its own line, even if another plan has the same app name.
         const simulated = plan.simulated === true;
-        const existing = row.items.find((it) => it.provider === provider && Boolean(it.simulated) === simulated);
-        if (existing) existing.centavos += amount;
-        else row.items.push(simulated ? { provider, centavos: amount, simulated } : { provider, centavos: amount });
+        const existing = row.items.find((it) => it.key === key);
+        if (existing) existing.centavos += amount; // e.g. two weekly payments in one quincena
+        else row.items.push(simulated ? { key, provider, centavos: amount, simulated } : { key, provider, centavos: amount });
       }
     }
   }

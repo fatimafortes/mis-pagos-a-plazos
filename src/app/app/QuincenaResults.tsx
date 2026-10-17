@@ -38,8 +38,8 @@ export default function QuincenaResults({
                 <tr key={row.index}>
                   <td>
                     {row.label}
-                    {row.items.map((it, i) => (
-                      <div key={i} className="small muted">
+                    {row.items.map((it) => (
+                      <div key={it.key} className="small muted">
                         {it.provider} · {formatPesos(it.centavos)}{it.simulated && SIM}
                       </div>
                     ))}

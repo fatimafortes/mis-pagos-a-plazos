@@ -86,13 +86,38 @@ describe("simulated plans", () => {
     const s = buildSchedule([real, { ...real, installment_amount: 100, simulated: true }], today);
     expect(s.rows[1].totalCentavos).toBe(45000);
     expect(s.rows[1].items).toEqual([
-      { provider: "CompraYa", centavos: 35000 },
-      { provider: "CompraYa", centavos: 10000, simulated: true },
+      { key: "#0", provider: "CompraYa", centavos: 35000 },
+      { key: "#1", provider: "CompraYa", centavos: 10000, simulated: true },
     ]);
   });
 
   it("carry id and simulated into Sin fecha", () => {
     const s = buildSchedule([{ ...real, id: "p1", next_due_date: null, simulated: true }], today);
     expect(s.undated[0]).toMatchObject({ id: "p1", simulated: true });
+  });
+});
+
+describe("one line per saved plan", () => {
+  const today = d("2026-10-16");
+  const plan: PlanInput = { provider_name: "PagaLuego", installment_amount: 412.5, payments_remaining: 1, next_due_date: "2026-11-05", frequency: "quincenal" };
+
+  it("two plans with the same app name stay on separate lines", () => {
+    const s = buildSchedule([{ ...plan, id: "p1" }, { ...plan, id: "p2", installment_amount: 200 }], today);
+    expect(s.rows[1].items).toEqual([
+      { key: "p1", provider: "PagaLuego", centavos: 41250 },
+      { key: "p2", provider: "PagaLuego", centavos: 20000 },
+    ]);
+    expect(s.rows[1].totalCentavos).toBe(61250);
+  });
+
+  it("two weekly payments of the same plan in one quincena share its line", () => {
+    const s = buildSchedule([{ ...plan, id: "p1", frequency: "semanal", payments_remaining: 2, next_due_date: "2026-11-01" }], today);
+    expect(s.rows[1].items).toEqual([{ key: "p1", provider: "PagaLuego", centavos: 82500 }]);
+  });
+
+  it("keeps exact centavos: $412.50 is 41250, never rounded to pesos", () => {
+    const s = buildSchedule([{ ...plan, id: "p1" }], today);
+    expect(s.rows[1].totalCentavos).toBe(41250);
+    expect(formatPesos(s.rows[1].totalCentavos)).toBe("$412.50");
   });
 });
