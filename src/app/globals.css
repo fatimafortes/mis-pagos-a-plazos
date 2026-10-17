@@ -104,3 +104,11 @@ p.sub { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.45
 
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
+
+.field { margin-top: 12px; }
+.field-input {
+  display: block; width: 100%; margin-top: 4px; padding: 10px 12px; font: inherit; font-size: 15px;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+}
+.field-input[aria-invalid="true"] { border-color: var(--danger); }
+.field-error { color: var(--danger); margin-top: 4px; }

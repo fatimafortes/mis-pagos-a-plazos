@@ -1,9 +1,8 @@
 "use client";
 import { useRef, useState } from "react";
 import { ACCEPT_ATTR, checkFileMeta } from "@/lib/upload";
-import {
-  FIELD_LABEL, PLAN_FIELDS, SOURCE_LABEL, YEAR_CALCULATED_LABEL, type ExtractedPlan, type PlanField,
-} from "@/lib/extraction";
+import type { ExtractedPlan } from "@/lib/extraction";
+import ReviewPlan from "./ReviewPlan";
 
 type Status =
   | { kind: "idle" }
@@ -11,19 +10,11 @@ type Status =
   | { kind: "sending" }
   | { kind: "extracted"; simulated: boolean; plans: ExtractedPlan[] };
 
-function formatValue(plan: ExtractedPlan, field: PlanField): string {
-  const value = plan[field];
-  if (value === null) return "No aparece en la captura";
-  if (field === "installment_amount") {
-    return "$" + Number(value).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-  return String(value);
-}
-
 export default function UploadForm() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [extractionId, setExtractionId] = useState(0);
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = e.target.files?.[0] ?? null;
@@ -59,6 +50,7 @@ export default function UploadForm() {
         });
         return;
       }
+      setExtractionId((n) => n + 1);
       setStatus({ kind: "extracted", simulated: Boolean(data.simulated), plans: data.plans ?? [] });
     } catch {
       setStatus({ kind: "error", message: "No hay conexión. Intenta de nuevo." });
@@ -96,31 +88,15 @@ export default function UploadForm() {
 
       {status.kind === "extracted" && (
         <section aria-live="polite">
-          <h2 style={{ marginTop: 20 }}>
-            Esto leí de tu captura
-            {status.simulated && <span className="sim-tag">SIMULADO</span>}
-          </h2>
-          {status.simulated && (
-            <p className="small muted" style={{ marginTop: 4 }}>
-              Respuesta de ejemplo: no se leyó tu imagen.
-            </p>
-          )}
+          <h2 style={{ marginTop: 20 }}>Revisa lo que leí de tu captura</h2>
+          <p className="small muted" style={{ marginTop: 4 }}>
+            {status.simulated
+              ? "Respuesta de ejemplo (SIMULADO): no se leyó tu imagen."
+              : "Confirma cada plan o corrígelo si algo no coincide. La imagen no se guardó."}
+          </p>
           {status.plans.map((plan, i) => (
-            <div className="card" key={i}>
-              {PLAN_FIELDS.map((field) => (
-                <div key={field} style={{ marginBottom: 10 }}>
-                  <div className="small muted">{FIELD_LABEL[field]}</div>
-                  <div className={plan[field] === null ? "muted" : undefined}>{formatValue(plan, field)}</div>
-                  <span className={`tag t-${plan.field_sources[field]}`}>
-                    {field === "next_due_date" && plan.year_calculated
-                      ? YEAR_CALCULATED_LABEL
-                      : SOURCE_LABEL[plan.field_sources[field]]}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <ReviewPlan key={`${extractionId}-${i}`} plan={plan} simulated={status.simulated} />
           ))}
-          <p className="small muted" style={{ marginTop: 10 }}>La imagen no se guardó.</p>
         </section>
       )}
     </>

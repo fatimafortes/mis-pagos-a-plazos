@@ -111,6 +111,11 @@ function pad(n: number) {
 
 export const formatYMD = (d: YMD) => `${d.y}-${pad(d.m)}-${pad(d.d)}`;
 
+/** Security floor: due dates must be within ±2 years of today. */
+export function isWithinTwoYears(date: YMD, today: YMD): boolean {
+  return ymdKey(date) >= ymdKey(addYears(today, -2)) && ymdKey(date) <= ymdKey(addYears(today, 2));
+}
+
 const intIn = (v: unknown, min: number, max: number) =>
   typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : null;
 
@@ -140,10 +145,8 @@ export function assembleDueDate(
   } else {
     date = nextOccurrence(day, month, today);
   }
-  const inWindow =
-    date !== null && ymdKey(date) >= ymdKey(addYears(today, -2)) && ymdKey(date) <= ymdKey(addYears(today, 2));
-  if (!inWindow) return { date: null, yearCalculated: false };
-  return { date: formatYMD(date!), yearCalculated: year === null };
+  if (date === null || !isWithinTwoYears(date, today)) return { date: null, yearCalculated: false };
+  return { date: formatYMD(date), yearCalculated: year === null };
 }
 
 /** Out-of-range or wrongly typed values become null (and therefore "unknown"). */
