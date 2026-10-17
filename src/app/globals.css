@@ -1,42 +1,106 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f3f1ec;
+  --surface: #fbfaf7;
+  --card: #ffffff;
+  --ink: #1c1b19;
+  --muted: #6b6862;
+  --line: #e4e1da;
+  --accent: #1f5f4a;
+  --accent-soft: #e3efe9;
+  --user: #3a55a4;
+  --user-soft: #e6ebf7;
+  --unk: #8a857c;
+  --unk-soft: #efede8;
+  --warn: #8a5a00;
+  --warn-soft: #fbf1d9;
+  --warn-line: #efd99c;
+  --danger: #a33a2c;
+  --danger-soft: #f8e6e2;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #141412;
+    --surface: #1b1a18;
+    --card: #232220;
+    --ink: #f1efea;
+    --muted: #a9a59d;
+    --line: #34322e;
+    --accent: #5fbf98;
+    --accent-soft: #1f3a30;
+    --user: #8fa6e8;
+    --user-soft: #252d45;
+    --unk: #a29c91;
+    --unk-soft: #2c2a27;
+    --warn: #e7bd63;
+    --warn-soft: #3a2f17;
+    --warn-line: #5b4920;
+    --danger: #ec8a7b;
+    --danger-soft: #3d2420;
   }
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+main.shell {
+  max-width: 440px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--surface);
+  padding: 20px 16px 48px;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+h1 { font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 15px; font-weight: 700; }
+p.sub { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+.demo-tag {
+  display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted);
+  border: 1px dashed var(--muted); border-radius: 6px; padding: 3px 7px; margin-bottom: 14px;
 }
+.sim-tag {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  color: #fff; background: var(--danger); border-radius: 6px; padding: 3px 8px; margin-left: 6px;
+}
+.step { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 4px; }
+
+.btn {
+  display: inline-flex; justify-content: center; align-items: center; gap: 8px;
+  padding: 13px 16px; border-radius: 14px; font-weight: 600; font-size: 15px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  cursor: pointer; font-family: inherit; text-decoration: none;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btns { display: flex; gap: 10px; margin-top: 14px; }
+.btns .btn { flex: 1; }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px; margin-top: 16px; }
+
+.banner {
+  margin-top: 14px; background: var(--warn-soft); border: 1px solid var(--warn-line);
+  border-radius: 14px; padding: 11px 13px; font-size: 13px; line-height: 1.45; color: var(--warn);
+}
+.banner b { display: block; }
+.banner.ok { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; }
+.banner.error { background: var(--danger-soft); border-color: transparent; color: var(--danger); }
+
+.tag {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600;
+  border-radius: 20px; padding: 3px 8px; margin-top: 5px; white-space: nowrap;
+}
+.t-screenshot { background: var(--accent-soft); color: var(--accent); }
+.t-user { background: var(--user-soft); color: var(--user); }
+.t-unknown { background: var(--unk-soft); color: var(--unk); }
+
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
