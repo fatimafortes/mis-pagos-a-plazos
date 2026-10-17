@@ -1,9 +1,9 @@
 {
   "reference_date": "2026-10-16",
-  "note": "Invented screenshots of fictional apps. Values are what is visible on screen; null = not visible. Sources in src/*.html.",
+  "note": "Invented screenshots of fictional apps (PACKET §11). Values are what is visible on screen; null = not visible or not legible. Sources in src/*.html; re-render with scripts/render-fixtures.sh.",
   "fixtures": {
     "pago.png": {
-      "case": "Clean payments screen, one plan",
+      "case": "1 · Clean payments screen, one plan",
       "is_payment_screen": true,
       "plans": [
         {
@@ -16,8 +16,58 @@
         }
       ]
     },
+    "compraya.png": {
+      "case": "2 · Clean payments screen, monthly",
+      "is_payment_screen": true,
+      "plans": [
+        {
+          "provider_name": "CompraYa",
+          "installment_amount": 389,
+          "payments_remaining": 5,
+          "next_due_date": "2026-11-15",
+          "frequency": "mensual",
+          "year_calculated": false
+        }
+      ]
+    },
+    "abono.png": {
+      "case": "3 · Clean screen, weekly, due date without year ('5 ene')",
+      "is_payment_screen": true,
+      "plans": [
+        {
+          "provider_name": "AbonoFácil",
+          "installment_amount": 250,
+          "payments_remaining": 8,
+          "next_due_date": "2027-01-05",
+          "frequency": "semanal",
+          "year_calculated": true
+        }
+      ]
+    },
+    "dosplanes.png": {
+      "case": "4 · Two plans on one screen",
+      "is_payment_screen": true,
+      "plans": [
+        {
+          "provider_name": "PagaLuego",
+          "installment_amount": 299.9,
+          "payments_remaining": 2,
+          "next_due_date": "2026-10-31",
+          "frequency": "quincenal",
+          "year_calculated": false
+        },
+        {
+          "provider_name": "PagaLuego",
+          "installment_amount": 640,
+          "payments_remaining": 4,
+          "next_due_date": "2026-10-31",
+          "frequency": "quincenal",
+          "year_calculated": false
+        }
+      ]
+    },
     "recortada.png": {
-      "case": "Cropped: no due date or frequency visible",
+      "case": "5 · Cropped: no due date or frequency visible",
       "is_payment_screen": true,
       "plans": [
         {
@@ -30,10 +80,38 @@
         }
       ]
     },
+    "borrosa.png": {
+      "case": "6 · Blurry: only the app name is legible",
+      "is_payment_screen": true,
+      "plans": [
+        {
+          "provider_name": "PagaLuego",
+          "installment_amount": null,
+          "payments_remaining": null,
+          "next_due_date": null,
+          "frequency": null,
+          "year_calculated": false
+        }
+      ]
+    },
     "chat.png": {
-      "case": "Not a payments screen (chat)",
+      "case": "7 · Not a payments screen (chat)",
       "is_payment_screen": false,
       "plans": []
+    },
+    "miles.png": {
+      "case": "8 · Amount with thousands separator and cents ($12,345.67)",
+      "is_payment_screen": true,
+      "plans": [
+        {
+          "provider_name": "CréditoYa",
+          "installment_amount": 12345.67,
+          "payments_remaining": 10,
+          "next_due_date": "2026-11-20",
+          "frequency": "mensual",
+          "year_calculated": false
+        }
+      ]
     }
   }
 }
