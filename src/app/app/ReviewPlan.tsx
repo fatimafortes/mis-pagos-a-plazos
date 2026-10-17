@@ -1,5 +1,6 @@
 "use client";
 import { useId, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   FIELD_LABEL, PLAN_FIELDS, SOURCE_LABEL, YEAR_CALCULATED_LABEL, todayInMexico, type ExtractedPlan, type PlanField,
 } from "@/lib/extraction";
@@ -11,6 +12,7 @@ type Mode = "review" | "edit" | "saving" | "saved";
 
 export default function ReviewPlan({ plan: extracted, simulated }: { plan: ExtractedPlan; simulated: boolean }) {
   const uid = useId();
+  const router = useRouter();
   const schemas = useMemo(() => fieldSchemas(todayInMexico()), []);
   const [plan, setPlan] = useState(extracted);
   const [drafts, setDrafts] = useState(
@@ -42,7 +44,7 @@ export default function ReviewPlan({ plan: extracted, simulated }: { plan: Extra
       const res = await fetch("/api/plans", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan: toConfirmedPlan(plan, plan.field_sources, plan.year_calculated) }),
+        body: JSON.stringify({ plan: toConfirmedPlan(plan, plan.field_sources, plan.year_calculated, simulated) }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -51,6 +53,7 @@ export default function ReviewPlan({ plan: extracted, simulated }: { plan: Extra
         return;
       }
       setMode("saved");
+      router.refresh(); // reload the quincena results with the new plan
     } catch {
       setSaveError("No hay conexión. Intenta de nuevo.");
       setMode("review");

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { daysInMonth, parseDate, type Frequency, type PlanInput, type YMD } from "./quincenas";
 
 export type FieldSource = "screenshot" | "user" | "unknown";
-export type PlanField = Exclude<keyof PlanInput, "id">;
+export type PlanField = Exclude<keyof PlanInput, "id" | "simulated">;
 export const PLAN_FIELDS: PlanField[] = [
   "provider_name", "installment_amount", "payments_remaining", "next_due_date", "frequency",
 ];

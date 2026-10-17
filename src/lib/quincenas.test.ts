@@ -77,3 +77,22 @@ describe("buildSchedule", () => {
     expect(s.afterCentavos).toBe(35000 * 3);
   });
 });
+
+describe("simulated plans", () => {
+  const today = d("2026-10-16");
+  const real: PlanInput = { provider_name: "CompraYa", installment_amount: 350, payments_remaining: 1, next_due_date: "2026-11-05", frequency: "quincenal" };
+
+  it("keep simulated amounts on their own line, still counted in the total", () => {
+    const s = buildSchedule([real, { ...real, installment_amount: 100, simulated: true }], today);
+    expect(s.rows[1].totalCentavos).toBe(45000);
+    expect(s.rows[1].items).toEqual([
+      { provider: "CompraYa", centavos: 35000 },
+      { provider: "CompraYa", centavos: 10000, simulated: true },
+    ]);
+  });
+
+  it("carry id and simulated into Sin fecha", () => {
+    const s = buildSchedule([{ ...real, id: "p1", next_due_date: null, simulated: true }], today);
+    expect(s.undated[0]).toMatchObject({ id: "p1", simulated: true });
+  });
+});

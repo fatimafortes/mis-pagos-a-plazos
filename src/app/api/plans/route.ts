@@ -31,15 +31,28 @@ export async function POST(request: Request) {
     );
   }
 
+  // In simulation mode every extraction is invented, whatever the client says.
+  const plan = parsed.data;
+  if (process.env.SIMULATE_AI === "true") plan.field_sources = { ...plan.field_sources, simulated: true };
+
   // user_id comes from the session, never from the request body; RLS checks it again.
   const { data, error } = await supabase
     .from("w10_payment_plans")
-    .insert({ ...parsed.data, user_id: user.id })
+    .insert({ ...plan, user_id: user.id })
     .select("id")
     .single();
   if (error) {
     console.error("[api/plans] insert falló:", { code: error.code, message: error.message });
     return NextResponse.json({ error: "No pude guardar el plan. Intenta de nuevo." }, { status: 500 });
   }
+
+  // A new plan means "these are all my apps" no longer holds; ask again.
+  const { error: statusError } = await supabase
+    .from("w10_ledger_status")
+    .update({ completeness: "incomplete", updated_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .eq("completeness", "complete_as_shown");
+  if (statusError) console.error("[api/plans] reset de completitud falló:", { code: statusError.code, message: statusError.message });
+
   return NextResponse.json({ id: data.id }, { status: 201 });
 }

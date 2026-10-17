@@ -10,6 +10,7 @@ export interface PlanInput {
   payments_remaining: number | null;
   next_due_date: string | null; // YYYY-MM-DD
   frequency: Frequency | null;
+  simulated?: boolean; // saved from a SIMULADO extraction
 }
 
 export interface YMD { y: number; m: number; d: number } // m = 1..12
@@ -83,8 +84,16 @@ export function missingFields(plan: PlanInput): string[] {
   return missing;
 }
 
-export interface Row { index: number; label: string; totalCentavos: number; items: { provider: string; centavos: number }[] }
-export interface Undated { provider: string; missing: string[]; totalCentavos: number | null; payments: number | null }
+export interface RowItem { provider: string; centavos: number; simulated?: boolean }
+export interface Row { index: number; label: string; totalCentavos: number; items: RowItem[] }
+export interface Undated {
+  id?: string;
+  provider: string;
+  missing: string[];
+  totalCentavos: number | null;
+  payments: number | null;
+  simulated?: boolean;
+}
 export interface Schedule {
   rows: Row[];
   undated: Undated[];
@@ -108,7 +117,10 @@ export function buildSchedule(plans: PlanInput[], today: YMD, horizon = 6): Sche
       const total = plan.installment_amount !== null && plan.payments_remaining !== null
         ? toCentavos(plan.installment_amount) * plan.payments_remaining
         : null;
-      undated.push({ provider, missing, totalCentavos: total, payments: plan.payments_remaining });
+      undated.push({
+        id: plan.id, provider, missing, totalCentavos: total, payments: plan.payments_remaining,
+        simulated: plan.simulated,
+      });
       continue;
     }
     const amount = toCentavos(plan.installment_amount!);
@@ -118,9 +130,11 @@ export function buildSchedule(plans: PlanInput[], today: YMD, horizon = 6): Sche
       else {
         const row = rows[q - start];
         row.totalCentavos += amount;
-        const existing = row.items.find((it) => it.provider === provider);
+        // Simulated amounts get their own line so they're never mixed with real ones.
+        const simulated = plan.simulated === true;
+        const existing = row.items.find((it) => it.provider === provider && Boolean(it.simulated) === simulated);
         if (existing) existing.centavos += amount;
-        else row.items.push({ provider, centavos: amount });
+        else row.items.push(simulated ? { provider, centavos: amount, simulated } : { provider, centavos: amount });
       }
     }
   }

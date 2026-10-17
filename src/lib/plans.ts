@@ -48,6 +48,8 @@ export function confirmedPlanSchema(today: YMD) {
         frequency: source,
         // Day and month came from the screenshot; the year was calculated by code.
         next_due_date_year: z.literal("calculated").optional(),
+        // Saved from a SIMULADO extraction: invented data, not read from the user's image.
+        simulated: z.literal(true).optional(),
       }),
     })
     .superRefine((plan, ctx) => {
@@ -69,6 +71,7 @@ export function toConfirmedPlan(
   values: PlanInput,
   sources: Record<PlanField, FieldSource>,
   yearCalculated: boolean,
+  simulated = false,
 ): ConfirmedPlan {
   const { provider_name, installment_amount, payments_remaining, next_due_date, frequency } = values;
   return {
@@ -76,9 +79,62 @@ export function toConfirmedPlan(
     field_sources: {
       ...sources,
       ...(yearCalculated && sources.next_due_date === "screenshot" ? { next_due_date_year: "calculated" as const } : {}),
+      ...(simulated ? { simulated: true as const } : {}),
     },
   };
 }
+
+export type StoredSources = ConfirmedPlan["field_sources"];
+
+export interface SavedPlan extends PlanInput {
+  id: string;
+  field_sources: StoredSources;
+  simulated: boolean;
+}
+
+export const SAVED_PLAN_COLUMNS =
+  "id, provider_name, installment_amount, payments_remaining, next_due_date, frequency, field_sources";
+
+/** A w10_payment_plans row as the results screen uses it. Postgres numeric may arrive as a string. */
+export function rowToSavedPlan(row: {
+  id: string;
+  provider_name: string | null;
+  installment_amount: number | string | null;
+  payments_remaining: number | null;
+  next_due_date: string | null;
+  frequency: string | null;
+  field_sources: StoredSources;
+}): SavedPlan {
+  return {
+    id: row.id,
+    provider_name: row.provider_name,
+    installment_amount: row.installment_amount === null ? null : Number(row.installment_amount),
+    payments_remaining: row.payments_remaining,
+    next_due_date: row.next_due_date,
+    frequency: FREQUENCY_OPTIONS.includes(row.frequency as Frequency) ? (row.frequency as Frequency) : null,
+    field_sources: row.field_sources,
+    simulated: row.field_sources?.simulated === true,
+  };
+}
+
+export const COMPLETENESS = ["incomplete", "complete_as_shown", "incomplete_by_choice"] as const;
+export type Completeness = (typeof COMPLETENESS)[number];
+export const completenessSchema = z.strictObject({ completeness: z.enum(COMPLETENESS) });
+
+export const COMPLETENESS_BANNER: Record<Completeness, { title: string; body: string }> = {
+  incomplete: {
+    title: "Vista incompleta",
+    body: "Solo incluye lo que me has mostrado. Puede que debas más en apps que no me has enseñado.",
+  },
+  complete_as_shown: {
+    title: "Completa hasta donde me has mostrado",
+    body: "Me dijiste que ya son todas tus apps de pagos a plazos.",
+  },
+  incomplete_by_choice: {
+    title: "Incompleta por tu decisión",
+    body: "Me dijiste que tienes otros pagos que prefieres no agregar. Estos totales no los incluyen.",
+  },
+};
 
 /** Applies one edit: a changed value becomes "Tú me lo dijiste", a cleared one unknown, an unchanged one stays. */
 export function applyEdit(

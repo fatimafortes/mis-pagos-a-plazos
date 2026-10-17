@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { sanitizePlan } from "./extraction";
-import { applyEdit, confirmedPlanSchema, fieldSchemas, formatField, parseDraft, toConfirmedPlan } from "./plans";
+import {
+  applyEdit, confirmedPlanSchema, fieldSchemas, formatField, parseDraft, rowToSavedPlan, toConfirmedPlan,
+} from "./plans";
 
 const today = { y: 2026, m: 10, d: 16 };
 const extracted = sanitizePlan(
@@ -104,5 +106,25 @@ describe("form helpers", () => {
     expect(formatField("next_due_date", "2026-10-30")).toBe("30 oct 2026");
     expect(formatField("payments_remaining", 1)).toBe("1 pago");
     expect(formatField("frequency", null)).toBe("No aparece en la captura");
+  });
+});
+
+describe("saved plans", () => {
+  it("toConfirmedPlan marks SIMULADO plans", () => {
+    const body = toConfirmedPlan(extracted, extracted.field_sources, false, true);
+    expect(body.field_sources.simulated).toBe(true);
+    expect(schema.safeParse(body).success).toBe(true);
+    expect(toConfirmedPlan(extracted, extracted.field_sources, false).field_sources).not.toHaveProperty("simulated");
+  });
+
+  it("rowToSavedPlan converts numeric strings and reads the simulated mark", () => {
+    const row = {
+      id: "p1", provider_name: "PagaLuego", installment_amount: "412.50", payments_remaining: 4,
+      next_due_date: null, frequency: "quincenal",
+      field_sources: { ...extracted.field_sources, simulated: true as const },
+    };
+    expect(rowToSavedPlan(row)).toMatchObject({ installment_amount: 412.5, frequency: "quincenal", simulated: true });
+    expect(rowToSavedPlan({ ...row, field_sources: extracted.field_sources }).simulated).toBe(false);
+    expect(rowToSavedPlan({ ...row, installment_amount: null }).installment_amount).toBeNull();
   });
 });
