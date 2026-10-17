@@ -9,7 +9,7 @@ type Status =
   | { kind: "idle" }
   | { kind: "error"; message: string; simulated?: boolean }
   | { kind: "sending" }
-  | { kind: "extracted"; simulated: boolean; plans: ExtractedPlan[] };
+  | { kind: "extracted"; simulated: boolean; plans: ExtractedPlan[]; remaining: number | null };
 
 export default function UploadForm() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +53,10 @@ export default function UploadForm() {
         return;
       }
       setExtractionId((n) => n + 1);
-      setStatus({ kind: "extracted", simulated: Boolean(data.simulated), plans: data.plans ?? [] });
+      setStatus({
+        kind: "extracted", simulated: Boolean(data.simulated), plans: data.plans ?? [],
+        remaining: typeof data.remaining === "number" ? data.remaining : null,
+      });
     } catch {
       setStatus({ kind: "error", message: "No hay conexión. Intenta de nuevo." });
     }
@@ -114,6 +117,8 @@ export default function UploadForm() {
             {status.simulated
               ? "Respuesta de ejemplo (SIMULADO): no se leyó tu imagen."
               : "Confirma cada plan o corrígelo si algo no coincide. La imagen no se guardó."}
+            {status.remaining !== null &&
+              ` Te ${status.remaining === 1 ? "queda 1 captura" : `quedan ${status.remaining} capturas`} hoy.`}
           </p>
           {status.plans.map((plan, i) => (
             <ReviewPlan key={`${extractionId}-${i}`} plan={plan} simulated={status.simulated} />

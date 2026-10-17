@@ -3,6 +3,7 @@ import { currentUser } from "@/lib/supabase/server";
 import { MAX_BYTES, checkFileBytes } from "@/lib/upload";
 import { runExtraction, todayInMexico } from "@/lib/extraction";
 import { callGemini } from "@/lib/gemini";
+import { LIMIT_MESSAGE, claimDailyScreenshot } from "@/lib/dailyLimit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Gemini may take up to its 45 s timeout per image.
@@ -11,7 +12,7 @@ export const maxDuration = 60; // Gemini may take up to its 45 s timeout per ima
 const MAX_BODY = MAX_BYTES + 64 * 1024;
 
 export async function POST(request: Request) {
-  const { user } = await currentUser();
+  const { supabase, user } = await currentUser();
   if (!user) return NextResponse.json({ error: "Inicia sesión para subir capturas." }, { status: 401 });
 
   const declared = Number(request.headers.get("content-length") ?? 0);
@@ -35,6 +36,10 @@ export async function POST(request: Request) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const check = checkFileBytes({ type: file.type, size: file.size }, bytes);
   if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
+
+  // Only valid screenshots count toward the daily limit.
+  const limit = await claimDailyScreenshot(supabase, user.id);
+  if (!limit.allowed) return NextResponse.json({ error: LIMIT_MESSAGE, limitReached: true }, { status: 429 });
 
   const result = await runExtraction({
     bytes,
@@ -62,5 +67,5 @@ export async function POST(request: Request) {
   if (result.kind === "rejected") {
     return NextResponse.json({ error: result.message, simulated: result.simulated }, { status: 422 });
   }
-  return NextResponse.json({ simulated: result.simulated, plans: result.plans });
+  return NextResponse.json({ simulated: result.simulated, plans: result.plans, remaining: limit.remaining });
 }
