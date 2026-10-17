@@ -66,6 +66,48 @@ describe("POST /api/plans", () => {
     expect((inserts()[0].args[0] as { field_sources: object }).field_sources).not.toHaveProperty("simulated");
   });
 
+  describe("same plan saved twice", () => {
+    const existing = {
+      id: "old", provider_name: "pagaluego ", installment_amount: "412.50", payments_remaining: 2,
+      next_due_date: "2026-10-30", frequency: "quincenal", field_sources: plan.field_sources,
+    };
+
+    it("asks instead of saving when app, amount, date and frequency match", async () => {
+      db.respond("w10_payment_plans.select", [existing]);
+      const res = await post({ plan });
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({
+        duplicate: true, error: "Ya tienes un plan igual de PagaLuego. ¿Es otra compra o el mismo?",
+      });
+      expect(inserts()).toEqual([]);
+      expect(db.calls[0].filters).toEqual([["user_id", "user-a"]]);
+    });
+
+    it("saves it when the user answered 'Es otra compra, guardar'", async () => {
+      db.respond("w10_payment_plans.select", [existing]);
+      const res = await post({ plan, allowDuplicate: true });
+      expect(res.status).toBe(201);
+      expect(inserts()).toHaveLength(1);
+    });
+
+    it("saves a plan that differs in any of the four fields", async () => {
+      db.respond("w10_payment_plans.select", [{ ...existing, installment_amount: "412.00" }]);
+      expect((await post({ plan })).status).toBe(201);
+    });
+
+    it("applies to plans typed by hand too", async () => {
+      const manual = {
+        ...plan,
+        field_sources: {
+          provider_name: "user", installment_amount: "user", payments_remaining: "user",
+          next_due_date: "user", frequency: "user",
+        },
+      };
+      db.respond("w10_payment_plans.select", [existing]);
+      expect((await post({ plan: manual })).status).toBe(409);
+    });
+  });
+
   it("resets 'complete as shown' to incomplete for this user only", async () => {
     await post({ plan });
     const reset = db.calls.find((c) => c.table === "w10_ledger_status");

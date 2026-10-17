@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/supabase/server";
 import { todayInMexico } from "@/lib/extraction";
-import { confirmedPlanSchema, isManualPlan } from "@/lib/plans";
+import {
+  SAVED_PLAN_COLUMNS, confirmedPlanSchema, duplicateQuestion, findDuplicate, isManualPlan, rowToSavedPlan,
+} from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,23 @@ export async function POST(request: Request) {
       { error: "Revisa los datos: " + parsed.error.issues.map((i) => i.message).join(" ") },
       { status: 400 },
     );
+  }
+
+  // Same app, amount, date and frequency as a saved plan: ask before saving it twice,
+  // unless the user already answered "Es otra compra, guardar".
+  if ((body as { allowDuplicate?: unknown }).allowDuplicate !== true) {
+    const { data: rows, error: readError } = await supabase
+      .from("w10_payment_plans")
+      .select(SAVED_PLAN_COLUMNS)
+      .eq("user_id", user.id);
+    if (readError) {
+      console.error("[api/plans] leer planes para duplicados falló:", { code: readError.code, message: readError.message });
+    } else if (findDuplicate(parsed.data, (rows ?? []).map(rowToSavedPlan))) {
+      return NextResponse.json(
+        { duplicate: true, error: duplicateQuestion(parsed.data.provider_name) },
+        { status: 409 },
+      );
+    }
   }
 
   // In simulation mode every extraction is invented, whatever the client says.

@@ -69,6 +69,24 @@ export function confirmedPlanSchema(today: YMD) {
 
 export type ConfirmedPlan = z.infer<ReturnType<typeof confirmedPlanSchema>>;
 
+const normName = (s: string | null) => (s === null ? null : s.trim().toLocaleLowerCase("es-MX"));
+const centavos = (n: number | null) => (n === null ? null : Math.round(n * 100));
+
+/** An existing plan with the same app, amount, next date and frequency (likely the same purchase twice). */
+export function findDuplicate<T extends PlanInput>(plan: PlanInput, existing: T[]): T | undefined {
+  return existing.find(
+    (e) =>
+      normName(e.provider_name) === normName(plan.provider_name) &&
+      centavos(e.installment_amount) === centavos(plan.installment_amount) &&
+      e.next_due_date === plan.next_due_date &&
+      e.frequency === plan.frequency,
+  );
+}
+
+export function duplicateQuestion(provider: string | null): string {
+  return `Ya tienes un plan igual de ${provider ?? "esta app"}. ¿Es otra compra o el mismo?`;
+}
+
 /** Starting point for "Capturar a mano": every field unknown until the user types it. */
 export function emptyManualPlan(): ExtractedPlan {
   return {

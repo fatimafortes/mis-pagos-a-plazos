@@ -8,7 +8,7 @@ import {
   FREQUENCY_OPTIONS, applyEdit, fieldSchemas, formatField, parseDraft, toConfirmedPlan, toDraft,
 } from "@/lib/plans";
 
-type Mode = "review" | "edit" | "saving" | "saved";
+type Mode = "review" | "edit" | "saving" | "saved" | "duplicate" | "skipped";
 
 export default function ReviewPlan({
   plan: extracted,
@@ -32,6 +32,8 @@ export default function ReviewPlan({
   const [errors, setErrors] = useState<Partial<Record<PlanField, string>>>({});
   const [mode, setMode] = useState<Mode>(manual ? "edit" : "review");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [duplicateText, setDuplicateText] = useState("");
+  const [modeBeforeSave, setModeBeforeSave] = useState<Mode>("review");
 
   const hasErrors = Object.values(errors).some(Boolean);
   const isEmpty = PLAN_FIELDS.every((f) => plan[f] === null);
@@ -48,18 +50,27 @@ export default function ReviewPlan({
     setPlan((p) => applyEdit(p, field, check.data as ExtractedPlan[PlanField]));
   }
 
-  async function confirm() {
+  async function confirm(allowDuplicate = false) {
     if (hasErrors || isEmpty) return;
+    if (mode !== "duplicate") setModeBeforeSave(mode);
     setMode("saving");
     setSaveError(null);
     try {
       const res = await fetch("/api/plans", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan: toConfirmedPlan(plan, plan.field_sources, plan.year_calculated, simulated) }),
+        body: JSON.stringify({
+          plan: toConfirmedPlan(plan, plan.field_sources, plan.year_calculated, simulated),
+          allowDuplicate,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 409 && data.duplicate) {
+          setDuplicateText(data.error);
+          setMode("duplicate");
+          return;
+        }
         setSaveError(data.error ?? "No pude guardar el plan. Intenta de nuevo.");
         setMode("edit");
         return;
@@ -119,14 +130,24 @@ export default function ReviewPlan({
         </div>
       ))}
 
-      {mode === "saved" ? (
-        <p className="banner ok">Guardado. Ya cuenta en tus quincenas.</p>
-      ) : (
+      {mode === "saved" && <p className="banner ok">Guardado. Ya cuenta en tus quincenas.</p>}
+      {mode === "skipped" && <p className="banner">No se guardó: ya tenías este plan.</p>}
+      {mode === "duplicate" && (
+        <div className="banner" role="alertdialog" aria-label="Plan repetido">
+          <b>{duplicateText}</b>
+          <div className="btns">
+            <button className="btn primary" type="button" onClick={() => confirm(true)}>Es otra compra, guardar</button>
+            <button className="btn" type="button" onClick={() => setMode("skipped")}>Es el mismo, no guardar</button>
+          </div>
+          <button className="btn link" type="button" onClick={() => setMode(modeBeforeSave)}>Volver a revisar</button>
+        </div>
+      )}
+      {mode !== "saved" && mode !== "skipped" && mode !== "duplicate" && (
         <div className="btns">
           <button
             className="btn primary"
             type="button"
-            onClick={confirm}
+            onClick={() => confirm()}
             disabled={mode === "saving" || hasErrors || isEmpty}
           >
             {mode === "saving" ? "Guardando…" : "Confirmar"}

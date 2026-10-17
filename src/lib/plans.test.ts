@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { sanitizePlan } from "./extraction";
 import {
-  applyEdit, confirmedPlanSchema, emptyManualPlan, fieldSchemas, formatField, isManualPlan, parseDraft, rowToSavedPlan,
-  toConfirmedPlan,
+  applyEdit, confirmedPlanSchema, duplicateQuestion, emptyManualPlan, fieldSchemas, findDuplicate, formatField,
+  isManualPlan, parseDraft, rowToSavedPlan, toConfirmedPlan,
 } from "./plans";
 
 const today = { y: 2026, m: 10, d: 16 };
@@ -159,5 +159,39 @@ describe("Capturar a mano", () => {
 
   it("a plan with any screenshot field is not manual", () => {
     expect(isManualPlan(extracted.field_sources)).toBe(false);
+  });
+});
+
+describe("findDuplicate", () => {
+  const saved = {
+    id: "p1", provider_name: "PagaLuego", installment_amount: 412.5, payments_remaining: 4,
+    next_due_date: "2026-10-30", frequency: "quincenal" as const,
+  };
+  const same = { ...saved, id: undefined, payments_remaining: 2 };
+
+  it("matches same app, amount, next date and frequency (payments left may differ)", () => {
+    expect(findDuplicate(same, [saved])).toBe(saved);
+  });
+
+  it("ignores case and spaces in the app name and compares amounts in centavos", () => {
+    expect(findDuplicate({ ...same, provider_name: "  pagaluego " }, [saved])).toBe(saved);
+    expect(findDuplicate({ ...same, installment_amount: 412.5000000001 }, [saved])).toBe(saved);
+  });
+
+  it("any difference in app, amount, date or frequency is a different plan", () => {
+    expect(findDuplicate({ ...same, provider_name: "CompraYa" }, [saved])).toBeUndefined();
+    expect(findDuplicate({ ...same, installment_amount: 412.51 }, [saved])).toBeUndefined();
+    expect(findDuplicate({ ...same, next_due_date: "2026-11-15" }, [saved])).toBeUndefined();
+    expect(findDuplicate({ ...same, frequency: "mensual" }, [saved])).toBeUndefined();
+  });
+
+  it("unknown values match unknown values", () => {
+    const undated = { ...saved, next_due_date: null, frequency: null };
+    expect(findDuplicate({ ...undated, id: undefined }, [undated])).toBe(undated);
+  });
+
+  it("asks with the app name", () => {
+    expect(duplicateQuestion("PagaLuego")).toBe("Ya tienes un plan igual de PagaLuego. ¿Es otra compra o el mismo?");
+    expect(duplicateQuestion(null)).toBe("Ya tienes un plan igual de esta app. ¿Es otra compra o el mismo?");
   });
 });
