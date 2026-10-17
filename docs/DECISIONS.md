@@ -12,6 +12,32 @@
 | 8 | 2026-10-16 | Demo uses invented screenshots of a fictional app ("PagaLuego", "CompraYa") | Free Gemini tier may use content to improve Google products; security floor bans real data |
 | 9 | 2026-10-16 | Frequency is a required field; month↔quincena conversion done by code only | Memory test: friend added quincenal and monthly payments as equal (MX$1,500 vs. MX$2,500) |
 | 10 | 2026-10-16 | Out of scope: credit-card MSI and subscriptions | Different screens and commitment types; recorded as findings |
+| 11 | 2026-10-16 | Vision model: `gemini-3.8-flash` (stable free-tier Flash), temperature 0, JSON schema output | Recommended for new projects; accepts images and structured output |
+| 12 | 2026-10-16 | Gemini returns the due date as day / month / year parts; if only the year is missing, code uses the next occurrence of that date and the UI says "Leído de captura · año calculado" | Apps often show "30 oct" without a year; the model never fills in data, code does it by a fixed rule and the user confirms it |
+| 13 | 2026-10-16 | Each extracted plan is confirmed on its own; a plan may be saved with unknown fields (it goes to "Sin fecha") | Unknown is honest; blocking the save would push users to guess |
+| 14 | 2026-10-16 | SIMULADO data only when `SIMULATE_AI=true`. If Gemini fails (quota, timeout, error) with `SIMULATE_AI=false`, show "No pude leer la captura ahora. Intenta más tarde o captúralo a mano." | Example data must never look like a reading of the user's own screenshot |
+| 15 | 2026-10-16 | Plans saved from SIMULADO carry `field_sources.simulated = true`; they are listed with the tag and "no se suma", never added to quincena totals | Invented amounts must not inflate what the user thinks they owe |
+| 16 | 2026-10-16 | One line per saved plan in the quincena table, even with the same app name | Two purchases on one app are two commitments |
+| 17 | 2026-10-16 | The user can delete any saved plan (server route + RLS, with "¿Borrar este plan?") | Blueprint condition 3: the user can correct or delete their data |
+| 18 | 2026-10-16 | Saving a new plan resets "completa hasta donde me has mostrado" to "incompleta" | A new app means the earlier "these are all" was not true |
+| 19 | 2026-10-16 | "Capturar a mano": same fields and validations; every typed value is "Tú me lo dijiste"; never marked SIMULADO | A way forward when the screenshot can't be read or the quota is used up |
+| 20 | 2026-10-16 | Limit of 10 screenshots per user per Mexico City day (`w10_extraction_log`: who and when only; RLS insert/select, no delete). Fails open if the table is missing | Free Gemini quota is 20 requests/day per project for `gemini-3.8-flash` |
+| 21 | 2026-10-16 | Gemini timeout raised from 25 s to 45 s (route `maxDuration` 60 s) | The blurry eval screenshot took longer than 25 s |
+| 22 | 2026-10-16 | Next.js 15.5.4 → 15.5.28 and React 19.1.0 → 19.1.10 | Vercel blocks deploys of 15.5.4 (CVE-2025-66478) |
+| 23 | 2026-10-16 | Eval set: 8 invented screenshots covering PACKET §11; `npm run eval` paces requests (13 s) and stops on quota errors instead of scoring them | One run = 8 of the 20 daily free requests; a quota error says nothing about extraction quality |
+
+## Eval results
+
+| Date | Model | Fields correct | Invented values | Screens right | Notes |
+|---|---|---|---|---|---|
+| 2026-10-16 | gemini-3.8-flash | 35/40 (87.5%) — target ≥ 95% | **0** — target 0 | 7/8 | 7 of 8 screenshots perfect, including "5 ene" without a year and $12,345.67. `borrosa.png` failed only because Gemini didn't answer within the 25 s timeout, so its 5 fields counted as wrong (no value was invented). A second run the same day hit the free-tier quota (429: 20 requests/day, 5/minute) and gave no result. |
+
+## Checked, not a bug
+- 2026-10-16 — A plan showed $413.00 instead of $412.50. Code keeps exact centavos end to end and `installment_amount` is `numeric(10,2)` (`numeric_scale = 2`); the 413 was a value typed while testing Corregir. Test added that pins $412.50 = 41250 centavos.
+
+## Open
+- Run `supabase/migrations/w10_extraction_log.sql` in the Supabase SQL editor (the daily limit is inactive until then).
+- Pick the free model with the most requests/day that accepts images. Google's docs don't publish free-tier numbers per model (only "view your active rate limits in AI Studio"); limits are per project, reset at midnight Pacific time and are not guaranteed. Image + structured-output candidates: `gemini-3.8-flash` (20/day, 5/min, from the API's own 429), `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite` — compare them in AI Studio before switching.
 
 ## Next first move
-Scaffold Next.js + Supabase, deploy an empty page to Vercel (commit 1, deploy 1).
+Run `npm run eval` once the Gemini free quota resets (midnight Pacific time, about 1:00 a.m. in Mexico City), with `borrosa.png` now under the 45 s timeout. If it passes (≥ 95% fields, 0 invented, 8/8 screens), record it under Eval results; if not, look at the failing fixture before touching the prompt.
