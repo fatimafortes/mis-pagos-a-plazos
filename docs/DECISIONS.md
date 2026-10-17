@@ -35,9 +35,9 @@
 
 | Date | Finding | Change |
 |---|---|---|
-| 2026-10-17 | The user never found the answer to their question ("¿cuánto pago la próxima quincena?"): the totals were below the upload form and the review cards | Decision 25: "Tu próxima quincena" card at the top |
-| 2026-10-17 | The user distrusted the app because the same plan appeared twice (saved twice from the same screenshot) | Decision 26: ask before saving a plan identical to a saved one |
-| 2026-10-17 | Risk of day/month confusion when typing a date by hand | Decision 27: date in words under the field |
+| 2026-10-17 | The user never found the answer to their question | Decision 25: "Tu próxima quincena" card at the top, so the answer comes first |
+| 2026-10-17 | The user distrusted the app because of duplicated plans | Decision 26: ask before saving a plan identical to a saved one |
+| 2026-10-17 | Follow-up proposed with the fixes: avoid day/month confusion when typing a date by hand | Decision 27: date in words under the field |
 | 2026-10-17 | Review of the new card: "venció" asserted something the app can't know | Decision 28: neutral grey wording that asks for a new screenshot |
 
 ## Eval results
