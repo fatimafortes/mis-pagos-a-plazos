@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildSchedule, formatPesos, parseDate, paymentQuincenas, quincenaIndex, quincenaLabel, toCentavos, type PlanInput } from "./quincenas";
+import {
+  buildSchedule, dueAlerts, formatPesos, parseDate, paymentQuincenas, quincenaIndex, quincenaLabel, quincenaSentence, toCentavos,
+  type PlanInput,
+} from "./quincenas";
 
 const d = (s: string) => parseDate(s)!;
 
@@ -131,5 +134,44 @@ describe("one line per saved plan", () => {
     const s = buildSchedule([{ ...plan, id: "p1" }], today);
     expect(s.rows[1].totalCentavos).toBe(41250);
     expect(formatPesos(s.rows[1].totalCentavos)).toBe("$412.50");
+  });
+});
+
+describe("Tu próxima quincena", () => {
+  const today = d("2026-10-16");
+  const plan: PlanInput = { provider_name: "PagaLuego", installment_amount: 412.5, payments_remaining: 3, next_due_date: "2026-10-30", frequency: "quincenal" };
+
+  it("names the next quincena as a sentence with the real month end", () => {
+    expect(quincenaSentence(quincenaIndex(d("2026-11-01")))).toBe("Del 1 al 15 de nov");
+    expect(quincenaSentence(quincenaIndex(d("2026-11-20")))).toBe("Del 16 al 30 de nov");
+    expect(quincenaSentence(quincenaIndex(d("2027-02-20")))).toBe("Del 16 al 28 de feb");
+  });
+
+  it("the card's numbers are rows 0 and 1 of the schedule: this quincena and the next", () => {
+    const s = buildSchedule([plan, { ...plan, installment_amount: 999, simulated: true }], today);
+    expect(s.rows[0].label).toBe("16–31 oct");
+    expect(s.rows[0].totalCentavos).toBe(41250); // 30 oct; the simulated $999 is not added
+    expect(quincenaSentence(s.rows[1].index)).toBe("Del 1 al 15 de nov");
+    expect(s.rows[1].totalCentavos).toBe(41250);
+  });
+
+  it("flags a payment due today and one already overdue", () => {
+    const alerts = dueAlerts([
+      { ...plan, provider_name: "CompraYa", next_due_date: "2026-10-10" },
+      { ...plan, next_due_date: "2026-10-16" },
+      { ...plan, provider_name: "Futuro", next_due_date: "2026-10-17" },
+    ], today);
+    expect(alerts).toEqual([
+      { provider: "PagaLuego", date: "16 oct", kind: "today" },
+      { provider: "CompraYa", date: "10 oct", kind: "overdue" },
+    ]);
+  });
+
+  it("never alerts for simulated plans, plans without a date or with no payments left", () => {
+    expect(dueAlerts([
+      { ...plan, next_due_date: "2026-10-16", simulated: true },
+      { ...plan, next_due_date: null },
+      { ...plan, next_due_date: "2026-10-01", payments_remaining: 0 },
+    ], today)).toEqual([]);
   });
 });

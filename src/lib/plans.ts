@@ -138,6 +138,13 @@ export const COMPLETENESS = ["incomplete", "complete_as_shown", "incomplete_by_c
 export type Completeness = (typeof COMPLETENESS)[number];
 export const completenessSchema = z.strictObject({ completeness: z.enum(COMPLETENESS) });
 
+/** Short tag next to a total. */
+export const COMPLETENESS_SHORT: Record<Completeness, string> = {
+  incomplete: "incompleto: solo lo que me mostraste",
+  complete_as_shown: "completo hasta donde me mostraste",
+  incomplete_by_choice: "incompleto por tu decisión",
+};
+
 export const COMPLETENESS_BANNER: Record<Completeness, { title: string; body: string }> = {
   incomplete: {
     title: "Vista incompleta",

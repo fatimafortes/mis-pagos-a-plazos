@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { buildSchedule } from "@/lib/quincenas";
+import { buildSchedule, dueAlerts } from "@/lib/quincenas";
 import { todayInMexico } from "@/lib/extraction";
 import { COMPLETENESS, SAVED_PLAN_COLUMNS, rowToSavedPlan, type Completeness } from "@/lib/plans";
 import UploadForm from "./UploadForm";
+import NextQuincenaCard from "./NextQuincenaCard";
 import QuincenaResults from "./QuincenaResults";
 import CompletenessQuestion from "./CompletenessQuestion";
 import SavedPlanCard from "./SavedPlanCard";
@@ -25,13 +26,17 @@ export default async function AppPage() {
   const plans = (plansRes.data ?? []).map(rowToSavedPlan);
   const stored = statusRes.data?.completeness as Completeness | undefined;
   const completeness: Completeness = stored && COMPLETENESS.includes(stored) ? stored : "incomplete";
-  const schedule = buildSchedule(plans, todayInMexico());
+  const today = todayInMexico();
+  const schedule = buildSchedule(plans, today);
 
   return (
     <main className="shell">
       <span className="demo-tag">Datos inventados · demo</span>
       <h1>Hola</h1>
       <p className="sub">Sesión iniciada como {user.email}.</p>
+      {!plansRes.error && (
+        <NextQuincenaCard schedule={schedule} completeness={completeness} alerts={dueAlerts(plans, today)} />
+      )}
       <UploadForm />
       {plansRes.error ? (
         <p className="banner error">No pude cargar tus planes guardados. Recarga la página.</p>

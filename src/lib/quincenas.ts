@@ -51,6 +51,37 @@ export function quincenaLabel(index: number): string {
   return `${range} ${MONTHS[m - 1]}`;
 }
 
+/** "Del 1 al 15 de nov" — the quincena as a sentence, for the summary card. */
+export function quincenaSentence(index: number): string {
+  const y = Math.floor(index / 24);
+  const m = Math.floor((index % 24) / 2) + 1;
+  const [from, to] = index % 2 === 0 ? [1, 15] : [16, daysInMonth(y, m)];
+  return `Del ${from} al ${to} de ${MONTHS[m - 1]}`;
+}
+
+export interface DueAlert { provider: string; date: string; kind: "today" | "overdue" }
+
+/** Real plans whose next payment is due today or already passed (simulated plans never alert). */
+export function dueAlerts(plans: PlanInput[], today: YMD): DueAlert[] {
+  const todayKey = quincenaDayKey(today);
+  const alerts: DueAlert[] = [];
+  for (const plan of plans) {
+    if (plan.simulated || plan.next_due_date === null || plan.payments_remaining === 0) continue;
+    const due = parseDate(plan.next_due_date);
+    if (!due) continue;
+    const key = quincenaDayKey(due);
+    if (key > todayKey) continue;
+    alerts.push({
+      provider: plan.provider_name?.trim() || "App sin nombre",
+      date: `${due.d} ${MONTHS[due.m - 1]}`,
+      kind: key === todayKey ? "today" : "overdue",
+    });
+  }
+  return alerts.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "today" ? -1 : 1));
+}
+
+const quincenaDayKey = (d: YMD) => d.y * 10000 + d.m * 100 + d.d;
+
 function addDays(date: YMD, days: number): YMD {
   const t = new Date(Date.UTC(date.y, date.m - 1, date.d + days));
   return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
