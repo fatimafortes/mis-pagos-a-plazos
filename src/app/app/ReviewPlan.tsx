@@ -10,7 +10,18 @@ import {
 
 type Mode = "review" | "edit" | "saving" | "saved";
 
-export default function ReviewPlan({ plan: extracted, simulated }: { plan: ExtractedPlan; simulated: boolean }) {
+export default function ReviewPlan({
+  plan: extracted,
+  simulated,
+  manual = false,
+  onClose,
+}: {
+  plan: ExtractedPlan;
+  simulated: boolean;
+  /** "Capturar a mano": opens in edit mode and offers Cancelar instead of Corregir. */
+  manual?: boolean;
+  onClose?: () => void;
+}) {
   const uid = useId();
   const router = useRouter();
   const schemas = useMemo(() => fieldSchemas(todayInMexico()), []);
@@ -19,11 +30,12 @@ export default function ReviewPlan({ plan: extracted, simulated }: { plan: Extra
     () => Object.fromEntries(PLAN_FIELDS.map((f) => [f, toDraft(extracted[f])])) as Record<PlanField, string>,
   );
   const [errors, setErrors] = useState<Partial<Record<PlanField, string>>>({});
-  const [mode, setMode] = useState<Mode>("review");
+  const [mode, setMode] = useState<Mode>(manual ? "edit" : "review");
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const hasErrors = Object.values(errors).some(Boolean);
-  const title = plan.provider_name ?? "App sin nombre";
+  const isEmpty = PLAN_FIELDS.every((f) => plan[f] === null);
+  const title = plan.provider_name ?? (manual ? "Captura a mano" : "App sin nombre");
 
   function onDraft(field: PlanField, draft: string) {
     setDrafts((d) => ({ ...d, [field]: draft }));
@@ -37,7 +49,7 @@ export default function ReviewPlan({ plan: extracted, simulated }: { plan: Extra
   }
 
   async function confirm() {
-    if (hasErrors) return;
+    if (hasErrors || isEmpty) return;
     setMode("saving");
     setSaveError(null);
     try {
@@ -56,7 +68,7 @@ export default function ReviewPlan({ plan: extracted, simulated }: { plan: Extra
       router.refresh(); // reload the quincena results with the new plan
     } catch {
       setSaveError("No hay conexión. Intenta de nuevo.");
-      setMode("review");
+      setMode(manual ? "edit" : "review");
     }
   }
 
@@ -111,17 +123,26 @@ export default function ReviewPlan({ plan: extracted, simulated }: { plan: Extra
         <p className="banner ok">Guardado. Ya cuenta en tus quincenas.</p>
       ) : (
         <div className="btns">
-          <button className="btn primary" type="button" onClick={confirm} disabled={mode === "saving" || hasErrors}>
+          <button
+            className="btn primary"
+            type="button"
+            onClick={confirm}
+            disabled={mode === "saving" || hasErrors || isEmpty}
+          >
             {mode === "saving" ? "Guardando…" : "Confirmar"}
           </button>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => setMode(mode === "edit" ? "review" : "edit")}
-            disabled={mode === "saving" || (mode === "edit" && hasErrors)}
-          >
-            {mode === "edit" ? "Listo" : "Corregir"}
-          </button>
+          {manual ? (
+            <button className="btn" type="button" onClick={onClose} disabled={mode === "saving"}>Cancelar</button>
+          ) : (
+            <button
+              className="btn"
+              type="button"
+              onClick={() => setMode(mode === "edit" ? "review" : "edit")}
+              disabled={mode === "saving" || (mode === "edit" && hasErrors)}
+            >
+              {mode === "edit" ? "Listo" : "Corregir"}
+            </button>
+          )}
         </div>
       )}
       {saveError && <p className="banner error" role="alert">{saveError}</p>}

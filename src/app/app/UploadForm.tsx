@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { ACCEPT_ATTR, checkFileMeta } from "@/lib/upload";
 import type { ExtractedPlan } from "@/lib/extraction";
+import { emptyManualPlan } from "@/lib/plans";
 import ReviewPlan from "./ReviewPlan";
 
 type Status =
@@ -15,6 +16,7 @@ export default function UploadForm() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [extractionId, setExtractionId] = useState(0);
+  const [manualId, setManualId] = useState<number | null>(null); // open "Capturar a mano" card
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = e.target.files?.[0] ?? null;
@@ -77,6 +79,9 @@ export default function UploadForm() {
           <button className="btn primary" type="submit" disabled={!file || status.kind === "sending"}>
             {status.kind === "sending" ? "Leyendo captura…" : "Leer captura"}
           </button>
+          <button className="btn" type="button" onClick={() => setManualId((n) => (n ?? 0) + 1)}>
+            Capturar a mano
+          </button>
         </div>
         {status.kind === "error" && (
           <p className="banner error" role="alert">
@@ -85,6 +90,22 @@ export default function UploadForm() {
           </p>
         )}
       </form>
+
+      {manualId !== null && (
+        <section aria-live="polite">
+          <h2 style={{ marginTop: 20 }}>Captura a mano</h2>
+          <p className="small muted" style={{ marginTop: 4 }}>
+            Escribe lo que ves en tu app. Todo lo que escribas queda como “Tú me lo dijiste”.
+          </p>
+          <ReviewPlan
+            key={`manual-${manualId}`}
+            plan={emptyManualPlan()}
+            simulated={false}
+            manual
+            onClose={() => setManualId(null)}
+          />
+        </section>
+      )}
 
       {status.kind === "extracted" && (
         <section aria-live="polite">

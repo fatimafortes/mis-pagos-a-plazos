@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/supabase/server";
 import { todayInMexico } from "@/lib/extraction";
-import { confirmedPlanSchema } from "@/lib/plans";
+import { confirmedPlanSchema, isManualPlan } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +32,10 @@ export async function POST(request: Request) {
   }
 
   // In simulation mode every extraction is invented, whatever the client says.
+  // A plan typed by hand has no screenshot fields and is never simulated.
   const plan = parsed.data;
-  if (process.env.SIMULATE_AI === "true") plan.field_sources = { ...plan.field_sources, simulated: true };
+  if (isManualPlan(plan.field_sources)) delete plan.field_sources.simulated;
+  else if (process.env.SIMULATE_AI === "true") plan.field_sources = { ...plan.field_sources, simulated: true };
 
   // user_id comes from the session, never from the request body; RLS checks it again.
   const { data, error } = await supabase

@@ -53,6 +53,19 @@ describe("POST /api/plans", () => {
     expect((inserts()[0].args[0] as { field_sources: { simulated?: true } }).field_sources.simulated).toBe(true);
   });
 
+  it("never marks a plan typed by hand as simulated, even with SIMULATE_AI=true", async () => {
+    vi.stubEnv("SIMULATE_AI", "true");
+    const manual = {
+      ...plan,
+      field_sources: {
+        provider_name: "user", installment_amount: "user", payments_remaining: "user",
+        next_due_date: "user", frequency: "user", simulated: true,
+      },
+    };
+    expect((await post({ plan: manual })).status).toBe(201);
+    expect((inserts()[0].args[0] as { field_sources: object }).field_sources).not.toHaveProperty("simulated");
+  });
+
   it("resets 'complete as shown' to incomplete for this user only", async () => {
     await post({ plan });
     const reset = db.calls.find((c) => c.table === "w10_ledger_status");

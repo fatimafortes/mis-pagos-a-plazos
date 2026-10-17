@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { sanitizePlan } from "./extraction";
 import {
-  applyEdit, confirmedPlanSchema, fieldSchemas, formatField, parseDraft, rowToSavedPlan, toConfirmedPlan,
+  applyEdit, confirmedPlanSchema, emptyManualPlan, fieldSchemas, formatField, isManualPlan, parseDraft, rowToSavedPlan,
+  toConfirmedPlan,
 } from "./plans";
 
 const today = { y: 2026, m: 10, d: 16 };
@@ -126,5 +127,37 @@ describe("saved plans", () => {
     expect(rowToSavedPlan(row)).toMatchObject({ installment_amount: 412.5, frequency: "quincenal", simulated: true });
     expect(rowToSavedPlan({ ...row, field_sources: extracted.field_sources }).simulated).toBe(false);
     expect(rowToSavedPlan({ ...row, installment_amount: null }).installment_amount).toBeNull();
+  });
+});
+
+describe("Capturar a mano", () => {
+  it("starts with every field unknown", () => {
+    const p = emptyManualPlan();
+    expect(Object.values(p.field_sources)).toEqual(Array(5).fill("unknown"));
+    expect(isManualPlan(p.field_sources)).toBe(true);
+  });
+
+  it("everything typed is 'Tú me lo dijiste' and passes the same validation", () => {
+    let p = emptyManualPlan();
+    p = applyEdit(p, "provider_name", "MiTienda");
+    p = applyEdit(p, "installment_amount", 412.5);
+    p = applyEdit(p, "next_due_date", "2026-11-15");
+    p = applyEdit(p, "frequency", "quincenal");
+    expect(p.field_sources).toEqual({
+      provider_name: "user", installment_amount: "user", payments_remaining: "unknown",
+      next_due_date: "user", frequency: "user",
+    });
+    expect(isManualPlan(p.field_sources)).toBe(true);
+    expect(schema.safeParse(confirm(p)).success).toBe(true);
+  });
+
+  it("an empty plan cannot be saved", () => {
+    const r = schema.safeParse(confirm(emptyManualPlan()));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0].message).toBe("Captura al menos un dato del plan.");
+  });
+
+  it("a plan with any screenshot field is not manual", () => {
+    expect(isManualPlan(extracted.field_sources)).toBe(false);
   });
 });

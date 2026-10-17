@@ -53,6 +53,9 @@ export function confirmedPlanSchema(today: YMD) {
       }),
     })
     .superRefine((plan, ctx) => {
+      if (PLAN_FIELDS.every((f) => plan[f] === null)) {
+        ctx.addIssue({ code: "custom", path: [], message: "Captura al menos un dato del plan." });
+      }
       for (const f of PLAN_FIELDS) {
         if ((plan[f] === null) !== (plan.field_sources[f] === "unknown")) {
           ctx.addIssue({ code: "custom", path: ["field_sources", f], message: "Fuente inconsistente con el valor." });
@@ -65,6 +68,20 @@ export function confirmedPlanSchema(today: YMD) {
 }
 
 export type ConfirmedPlan = z.infer<ReturnType<typeof confirmedPlanSchema>>;
+
+/** Starting point for "Capturar a mano": every field unknown until the user types it. */
+export function emptyManualPlan(): ExtractedPlan {
+  return {
+    provider_name: null, installment_amount: null, payments_remaining: null, next_due_date: null, frequency: null,
+    field_sources: Object.fromEntries(PLAN_FIELDS.map((f) => [f, "unknown"])) as Record<PlanField, FieldSource>,
+    year_calculated: false,
+  };
+}
+
+/** True when no field came from a screenshot: the plan was entered by hand. */
+export function isManualPlan(sources: Record<PlanField, FieldSource>): boolean {
+  return PLAN_FIELDS.every((f) => sources[f] !== "screenshot");
+}
 
 /** What the review form sends when the user presses Confirmar. */
 export function toConfirmedPlan(
