@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseModelOutput, runExtraction, sanitizePlan, simulatedModelText, todayInMexico } from "./extraction";
+import {
+  assembleDueDate, nextOccurrence, parseModelOutput, runExtraction, sanitizePlan, simulatedModelText, todayInMexico,
+} from "./extraction";
 
 const today = { y: 2026, m: 10, d: 16 };
 const good = {
   provider_name: "PagaLuego",
   installment_amount: 412.5,
   payments_remaining: 4,
-  next_due_date: "2026-10-30",
+  due_day: 30,
+  due_month: 10,
+  due_year: 2026,
   frequency: "quincenal",
 };
 const reply = (plans: unknown[], is_payment_screen = true) => JSON.stringify({ is_payment_screen, plans });
@@ -17,12 +21,15 @@ describe("parseModelOutput", () => {
     expect(r.kind).toBe("plans");
     if (r.kind !== "plans") return;
     expect(r.simulated).toBe(false);
-    expect(r.plans[0]).toMatchObject(good);
+    expect(r.plans[0]).toMatchObject({
+      provider_name: "PagaLuego", installment_amount: 412.5, payments_remaining: 4,
+      next_due_date: "2026-10-30", frequency: "quincenal", year_calculated: false,
+    });
     expect(Object.values(r.plans[0].field_sources)).toEqual(Array(5).fill("screenshot"));
   });
 
   it("keeps nulls as unknown, never filling them in", () => {
-    const r = parseModelOutput(reply([{ ...good, next_due_date: null, frequency: null }]), today);
+    const r = parseModelOutput(reply([{ ...good, due_day: null, due_month: null, due_year: null, frequency: null }]), today);
     if (r.kind !== "plans") throw new Error(r.kind);
     expect(r.plans[0].next_due_date).toBeNull();
     expect(r.plans[0].field_sources.next_due_date).toBe("unknown");
@@ -76,11 +83,16 @@ describe("sanitizePlan: out-of-range values become null", () => {
   });
 
   it("dates that are invalid or more than 2 years away", () => {
-    expect(check({ next_due_date: "2026-02-30" }).next_due_date).toBeNull();
-    expect(check({ next_due_date: "30/10/2026" }).next_due_date).toBeNull();
-    expect(check({ next_due_date: "2028-10-17" }).next_due_date).toBeNull();
-    expect(check({ next_due_date: "2024-10-15" }).next_due_date).toBeNull();
-    expect(check({ next_due_date: "2028-10-16" }).next_due_date).toBe("2028-10-16");
+    const date = (d: unknown, m: unknown, y: unknown) => check({ due_day: d, due_month: m, due_year: y }).next_due_date;
+    expect(date(30, 2, 2026)).toBeNull();
+    expect(date(32, 10, 2026)).toBeNull();
+    expect(date(30, 13, 2026)).toBeNull();
+    expect(date("30", 10, 2026)).toBeNull();
+    expect(date(17, 10, 2028)).toBeNull();
+    expect(date(15, 10, 2024)).toBeNull();
+    expect(date(16, 10, 2028)).toBe("2028-10-16");
+    expect(date(30, null, 2026)).toBeNull();
+    expect(date(null, 10, 2026)).toBeNull();
   });
 
   it("provider names that are empty or over 60 chars", () => {
@@ -97,6 +109,45 @@ describe("sanitizePlan: out-of-range values become null", () => {
 
   it("marks sanitized fields as unknown", () => {
     expect(check({ installment_amount: -5 }).field_sources.installment_amount).toBe("unknown");
+  });
+});
+
+describe("dates without a visible year", () => {
+  // Seen today, 16 Oct 2026.
+  it("'30 oct' → 2026-10-30, year marked as calculated", () => {
+    expect(assembleDueDate({ due_day: 30, due_month: 10, due_year: null }, today)).toEqual({
+      date: "2026-10-30", yearCalculated: true,
+    });
+  });
+
+  it("'5 ene' → 2027-01-05", () => {
+    expect(assembleDueDate({ due_day: 5, due_month: 1, due_year: null }, today).date).toBe("2027-01-05");
+  });
+
+  it("today counts as the next occurrence; yesterday rolls to next year", () => {
+    expect(nextOccurrence(16, 10, today)).toEqual({ y: 2026, m: 10, d: 16 });
+    expect(nextOccurrence(15, 10, today)).toEqual({ y: 2027, m: 10, d: 15 });
+  });
+
+  it("'29 feb' waits for the next leap year", () => {
+    expect(nextOccurrence(29, 2, today)).toEqual({ y: 2028, m: 2, d: 29 });
+  });
+
+  it("'31 nov' does not exist in any year", () => {
+    expect(assembleDueDate({ due_day: 31, due_month: 11, due_year: null }, today).date).toBeNull();
+  });
+
+  it("a visible year is never recalculated", () => {
+    expect(assembleDueDate({ due_day: 5, due_month: 1, due_year: 2026 }, today)).toEqual({
+      date: "2026-01-05", yearCalculated: false,
+    });
+  });
+
+  it("the plan keeps source 'screenshot' and the year_calculated flag", () => {
+    const plan = sanitizePlan({ ...good, due_day: 5, due_month: 1, due_year: null }, today);
+    expect(plan.next_due_date).toBe("2027-01-05");
+    expect(plan.field_sources.next_due_date).toBe("screenshot");
+    expect(plan.year_calculated).toBe(true);
   });
 });
 
@@ -141,7 +192,10 @@ describe("runExtraction", () => {
 
 describe("simulated data and today", () => {
   it("canned dated plan always falls in the next quincena", () => {
-    const at = (y: number, m: number, d: number) => JSON.parse(simulatedModelText({ y, m, d })).plans[1].next_due_date;
+    const at = (y: number, m: number, d: number) => {
+      const p = JSON.parse(simulatedModelText({ y, m, d })).plans[1];
+      return `${p.due_year}-${String(p.due_month).padStart(2, "0")}-${String(p.due_day).padStart(2, "0")}`;
+    };
     expect(at(2026, 10, 15)).toBe("2026-10-16");
     expect(at(2026, 10, 16)).toBe("2026-11-01");
     expect(at(2026, 12, 31)).toBe("2027-01-01");

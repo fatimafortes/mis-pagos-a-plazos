@@ -1,7 +1,9 @@
 "use client";
 import { useRef, useState } from "react";
 import { ACCEPT_ATTR, checkFileMeta } from "@/lib/upload";
-import { FIELD_LABEL, PLAN_FIELDS, SOURCE_LABEL, type ExtractedPlan, type PlanField } from "@/lib/extraction";
+import {
+  FIELD_LABEL, PLAN_FIELDS, SOURCE_LABEL, YEAR_CALCULATED_LABEL, type ExtractedPlan, type PlanField,
+} from "@/lib/extraction";
 
 type Status =
   | { kind: "idle" }
@@ -109,7 +111,11 @@ export default function UploadForm() {
                 <div key={field} style={{ marginBottom: 10 }}>
                   <div className="small muted">{FIELD_LABEL[field]}</div>
                   <div className={plan[field] === null ? "muted" : undefined}>{formatValue(plan, field)}</div>
-                  <span className={`tag t-${plan.field_sources[field]}`}>{SOURCE_LABEL[plan.field_sources[field]]}</span>
+                  <span className={`tag t-${plan.field_sources[field]}`}>
+                    {field === "next_due_date" && plan.year_calculated
+                      ? YEAR_CALCULATED_LABEL
+                      : SOURCE_LABEL[plan.field_sources[field]]}
+                  </span>
                 </div>
               ))}
             </div>
