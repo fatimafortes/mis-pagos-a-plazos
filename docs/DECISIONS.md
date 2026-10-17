@@ -26,6 +26,19 @@
 | 22 | 2026-10-16 | Next.js 15.5.4 → 15.5.28 and React 19.1.0 → 19.1.10 | Vercel blocks deploys of 15.5.4 (CVE-2025-66478) |
 | 23 | 2026-10-16 | Eval set: 8 invented screenshots covering PACKET §11; `npm run eval` paces requests (13 s) and stops on quota errors instead of scoring them | One run = 8 of the 20 daily free requests; a quota error says nothing about extraction quality |
 | 24 | 2026-10-17 | `npm run eval` also stops with "Sin resultado" on a Gemini 503; timeouts still count as failures | A 503 is a Google outage, not a misreading; a slow screenshot is a real failure for the user |
+| 25 | 2026-10-17 | "Tu próxima quincena" card at the top, under the greeting: "Del 1 al 15 de nov pagas $X" (next quincena, fixed rules), "Esta quincena (16–31 oct): $Y", the completeness tag next to the total, a note when plans without a date are left out, and "[app] vence hoy". SIMULADO amounts are never added and never alert | Persona test: the user never found the answer to their own question; the answer now comes first |
+| 26 | 2026-10-17 | Before saving a plan (read or typed) that matches a saved one on app, amount, next date and frequency, ask "Ya tienes un plan igual de [app]. ¿Es otra compra o el mismo?" — "Es otra compra, guardar" / "Es el mismo, no guardar" (+ "Volver a revisar"). Checked on the server (409); names compared ignoring case and spaces, amounts in centavos | Persona test: duplicated plans made the user distrust the totals; two real purchases can still look identical, so the user decides |
+| 27 | 2026-10-17 | While editing the due date ("Capturar a mano" and "Corregir"), show it in words under the field ("17 nov 2026") | Avoids day/month confusion when typing a date |
+| 28 | 2026-10-17 | A captured due date that already passed shows, in grey: "La fecha que capturaste de [app] (10 oct) ya pasó. Sube una captura nueva para actualizarla." Never "venció" | The app only knows the captured date, not whether the user already paid; it must not claim a debt is overdue |
+
+## Persona test
+
+| Date | Finding | Change |
+|---|---|---|
+| 2026-10-17 | The user never found the answer to their question ("¿cuánto pago la próxima quincena?"): the totals were below the upload form and the review cards | Decision 25: "Tu próxima quincena" card at the top |
+| 2026-10-17 | The user distrusted the app because the same plan appeared twice (saved twice from the same screenshot) | Decision 26: ask before saving a plan identical to a saved one |
+| 2026-10-17 | Risk of day/month confusion when typing a date by hand | Decision 27: date in words under the field |
+| 2026-10-17 | Review of the new card: "venció" asserted something the app can't know | Decision 28: neutral grey wording that asks for a new screenshot |
 
 ## Eval results
 
